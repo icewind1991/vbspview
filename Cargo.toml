@@ -2,10 +2,12 @@
 name = "vbspview"
 version = "0.1.0"
 edition = "2021"
+authors = ["Robin Appelman <robin@icewind.nl>"]
+license = "MIT"
 
 [dependencies]
 three-d = "0.10.2"
-vbsp = { version = "0.1.0", path = "../bsp" }
+vbsp = "0.1.0"
 miette = { version = "3.2.0", features = ["fancy"] }
 thiserror = "1.0.30"
 delaunator = "1.0.1"
