@@ -284,7 +284,7 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
         .filter(|face| face.is_visible())
         .flat_map(|face| face.triangulate())
         .flat_map(|triangle| triangle.into_iter())
-        .flat_map(|vertex| vertex.iter())
+        .flat_map(|vertex| [vertex.x, vertex.z, vertex.y])
         .map(|c| c / size)
         .collect();
 
