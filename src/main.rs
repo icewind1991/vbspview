@@ -2,19 +2,17 @@ mod camera;
 
 use camera::FirstPerson;
 use itertools::Either;
-use miette::Diagnostic;
 use std::env::args;
 use std::fs;
 use thiserror::Error;
 use three_d::*;
 use vbsp::{Bsp, Handle};
 
-#[derive(Debug, Error, Diagnostic)]
+#[derive(Debug, Error)]
 enum Error {
     #[error(transparent)]
     Three(#[from] Box<dyn std::error::Error>),
     #[error(transparent)]
-    #[diagnostic(transparent)]
     Bsp(#[from] vbsp::BspError),
     #[error(transparent)]
     IO(#[from] std::io::Error),
@@ -134,6 +132,11 @@ fn main() -> Result<(), Error> {
                     ui.label("View options");
                     ui.add(Slider::new(&mut depth_max, 1.0..=30.0).text("Depth max"));
                     ui.add(Slider::new(&mut fov, 45.0..=90.0).text("FOV"));
+
+                    ui.label("Position");
+                    ui.add(Label::new(format!("\tx: {}", camera.position().x)));
+                    ui.add(Label::new(format!("\ty: {}", camera.position().y)));
+                    ui.add(Label::new(format!("\tz: {}", camera.position().z)));
                 });
                 panel_width = gui_context.used_size().x as u32;
             })

@@ -2321,7 +2321,6 @@ dependencies = [
  "bitflags",
  "bv",
  "lzma-rs",
- "miette",
  "num_enum",
  "static_assertions",
  "thiserror",
