@@ -1,6 +1,7 @@
 mod camera;
 
 use camera::FirstPerson;
+use itertools::Either;
 use miette::Diagnostic;
 use std::env::args;
 use std::fs;
@@ -42,7 +43,7 @@ fn main() -> Result<(), Error> {
 
     let window = Window::new(WindowSettings {
         title: file.clone(),
-        max_size: Some((1280, 720)),
+        max_size: Some((1920, 1080)),
         ..Default::default()
     })?;
 
@@ -287,8 +288,12 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
     let positions: Vec<f32> = model
         .faces()
         .filter(|face| face.is_visible())
-        .flat_map(|face| face.triangulate())
-        .flat_map(|triangle| triangle.into_iter())
+        .flat_map(|face| {
+            face.displacement()
+                .and_then(|displacement| displacement.triangulated_displaced_vertices())
+                .map(|verts| Either::Left(verts))
+                .unwrap_or_else(|| Either::Right(face.triangulate().flat_map(|verts| verts)))
+        })
         .flat_map(|vertex| [-vertex.x, vertex.z, vertex.y])
         .map(|c| c / size)
         .collect();

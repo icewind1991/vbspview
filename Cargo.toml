@@ -11,6 +11,7 @@ vbsp = { version = "0.1.0", path = "../bsp" }
 miette = { version = "3.2.0", features = ["fancy"] }
 thiserror = "1.0.30"
 delaunator = "1.0.1"
+itertools = "0.10.3"
 
 [profile.dev.package."*"]
 opt-level = 2
