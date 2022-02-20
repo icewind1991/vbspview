@@ -2300,8 +2300,6 @@ dependencies = [
 [[package]]
 name = "vbsp"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c7d0e90c80972e04953605910a6bf5ea463673abd4e05924e38e9f3b47bc0ac"
 dependencies = [
  "arrayvec 0.7.2",
  "binrw",

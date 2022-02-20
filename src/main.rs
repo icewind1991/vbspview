@@ -1,3 +1,6 @@
+mod camera;
+
+use camera::FirstPerson;
 use miette::Diagnostic;
 use std::env::args;
 use std::fs;
@@ -64,7 +67,7 @@ fn main() -> Result<(), Error> {
         30.0,
     )
     .unwrap();
-    let mut control = OrbitControl::new(*camera.target(), 1.0, 100.0);
+    let mut control = FirstPerson::new(0.05);
     let mut gui = three_d::GUI::new(&context).unwrap();
 
     let material = PhysicalMaterial {
@@ -85,18 +88,15 @@ fn main() -> Result<(), Error> {
             intensity: 0.2,
             ..Default::default()
         }),
-        directional: vec![DirectionalLight::new(
-            &context,
-            1.0,
-            Color::WHITE,
-            &vec3(0.0, -1.0, 0.0),
-        )
-        .unwrap()],
+        directional: vec![
+            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, -1.0, 0.0))?,
+            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, 1.0, 0.0))?,
+        ],
         ..Default::default()
     };
 
     // main loop
-    let mut shadows_enabled = true;
+    let mut shadows_enabled = false;
     let mut directional_intensity = lights.directional[0].intensity();
 
     let mut current_pipeline = Pipeline::Forward;
@@ -120,9 +120,11 @@ fn main() -> Result<(), Error> {
                             .text("Directional intensity"),
                     );
                     lights.directional[0].set_intensity(directional_intensity);
+                    lights.directional[1].set_intensity(directional_intensity);
                     if ui.checkbox(&mut shadows_enabled, "Shadows").clicked() {
                         if !shadows_enabled {
                             lights.directional[0].clear_shadow_map();
+                            lights.directional[1].clear_shadow_map();
                         }
                     }
 
@@ -193,6 +195,9 @@ fn main() -> Result<(), Error> {
         {
             if shadows_enabled {
                 lights.directional[0]
+                    .generate_shadow_map(4.0, 1024, 1024, &[&model])
+                    .unwrap();
+                lights.directional[1]
                     .generate_shadow_map(4.0, 1024, 1024, &[&model])
                     .unwrap();
             }
@@ -278,13 +283,13 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
     .into_iter()
     .max_by(|a, b| a.partial_cmp(b).unwrap())
     .unwrap()
-        / 10.0;
+        / 50.0;
     let positions: Vec<f32> = model
         .faces()
         .filter(|face| face.is_visible())
         .flat_map(|face| face.triangulate())
         .flat_map(|triangle| triangle.into_iter())
-        .flat_map(|vertex| [vertex.x, vertex.z, vertex.y])
+        .flat_map(|vertex| [-vertex.x, vertex.z, vertex.y])
         .map(|c| c / size)
         .collect();
 
