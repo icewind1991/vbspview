@@ -235,7 +235,7 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
         .filter(|face| face.is_visible())
         .flat_map(|face| {
             face.displacement()
-                .and_then(|displacement| displacement.triangulated_displaced_vertices())
+                .map(|displacement| displacement.triangulated_displaced_vertices())
                 .map(|verts| Either::Left(verts))
                 .unwrap_or_else(|| Either::Right(face.triangulate().flat_map(|verts| verts)))
         })
