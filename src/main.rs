@@ -51,7 +51,7 @@ fn main() -> Result<(), Error> {
     let mut camera = Camera::new_perspective(
         &context,
         window.viewport().unwrap(),
-        vec3(2.0, 2.0, 5.0),
+        vec3(4.0, 4.0, 11.0),
         vec3(0.0, 0.0, 0.0),
         vec3(0.0, 1.0, 0.0),
         degrees(90.0),
@@ -59,7 +59,7 @@ fn main() -> Result<(), Error> {
         30.0,
     )
     .unwrap();
-    let mut control = FirstPerson::new(0.05);
+    let mut control = FirstPerson::new(0.1);
     let mut gui = three_d::GUI::new(&context).unwrap();
 
     let material = PhysicalMaterial {
@@ -156,7 +156,7 @@ fn main() -> Result<(), Error> {
         // Draw
         {
             camera
-                .set_perspective_projection(degrees(fov), 0.1, 30.0)
+                .set_perspective_projection(degrees(fov), camera.z_near(), camera.z_far())
                 .unwrap();
             if shadows_enabled {
                 lights.directional[0]
@@ -220,16 +220,10 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
+// 1 hammer unit is ~1.905cm
+const UNIT_SCALE: f32 = 1.0 / (1.905 * 100.0);
+
 fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
-    let size = [
-        model.maxs.z - model.mins.z,
-        model.maxs.y - model.mins.y,
-        model.maxs.x - model.mins.x,
-    ]
-    .into_iter()
-    .max_by(|a, b| a.partial_cmp(b).unwrap())
-    .unwrap()
-        / 50.0;
     let positions: Vec<f32> = model
         .faces()
         .filter(|face| face.is_visible())
@@ -240,7 +234,7 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
                 .unwrap_or_else(|| Either::Right(face.triangulate().flat_map(|verts| verts)))
         })
         .flat_map(|vertex| [-vertex.x, vertex.z, vertex.y])
-        .map(|c| c / size)
+        .map(|c| c * UNIT_SCALE)
         .collect();
 
     CPUMesh {
