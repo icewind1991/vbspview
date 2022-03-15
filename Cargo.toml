@@ -12,6 +12,9 @@ miette = { version = "4.2.1", features = ["fancy"] }
 thiserror = "1.0.30"
 delaunator = "1.0.1"
 itertools = "0.10.3"
+steamlocate = "1.0.1"
+vpk = "0.1.2"
+vmdl = { version = "*", path = "../vmdl" }
 
 [profile.dev.package."*"]
 opt-level = 2

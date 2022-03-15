@@ -3,6 +3,7 @@ use three_d::*;
 pub struct FirstPerson {
     control: CameraControl,
     speed: f32,
+    keys: [bool; 4],
 }
 
 impl FirstPerson {
@@ -18,6 +19,7 @@ impl FirstPerson {
                 ..Default::default()
             },
             speed,
+            keys: [false; 4],
         }
     }
 
@@ -26,31 +28,52 @@ impl FirstPerson {
         camera: &mut Camera,
         events: &mut [Event],
     ) -> ThreeDResult<bool> {
-        let mut change = self.control.handle_events(camera, events)?;
+        let change = self.control.handle_events(camera, events)?;
         for event in events.iter_mut() {
-            change |= match event {
-                Event::KeyPress { kind, handled, .. } => {
-                    if let Some((action, x)) = self.key_to_action(kind) {
-                        *handled = true;
-                        self.handle_action(camera, action, x)?;
-                        true
-                    } else {
-                        false
-                    }
+            match event {
+                Event::KeyPress { kind, .. } => {
+                    self.key_press(kind);
                 }
-                _ => false,
+                Event::KeyRelease { kind, .. } => {
+                    self.key_release(kind);
+                }
+                _ => {}
             };
         }
-        Ok(change)
+
+        if self.keys[0] {
+            self.handle_action(camera, CameraAction::Forward { speed: self.speed }, 1.0)?;
+        }
+        if self.keys[1] {
+            self.handle_action(camera, CameraAction::Forward { speed: self.speed }, -1.0)?;
+        }
+        if self.keys[2] {
+            self.handle_action(camera, CameraAction::Left { speed: self.speed }, 1.0)?;
+        }
+        if self.keys[3] {
+            self.handle_action(camera, CameraAction::Left { speed: self.speed }, -1.0)?;
+        }
+
+        Ok(self.keys.iter().fold(change, |change, key| change && *key))
     }
 
-    fn key_to_action(&self, key: &Key) -> Option<(CameraAction, f64)> {
+    fn key_press(&mut self, key: &Key) {
         match key {
-            Key::W => Some((CameraAction::Forward { speed: self.speed }, 1.0)),
-            Key::S => Some((CameraAction::Forward { speed: self.speed }, -1.0)),
-            Key::A => Some((CameraAction::Left { speed: self.speed }, 1.0)),
-            Key::D => Some((CameraAction::Left { speed: self.speed }, -1.0)),
-            _ => None,
+            Key::W => self.keys[0] = true,
+            Key::S => self.keys[1] = true,
+            Key::A => self.keys[2] = true,
+            Key::D => self.keys[3] = true,
+            _ => {}
+        }
+    }
+
+    fn key_release(&mut self, key: &Key) {
+        match key {
+            Key::W => self.keys[0] = false,
+            Key::S => self.keys[1] = false,
+            Key::A => self.keys[2] = false,
+            Key::D => self.keys[3] = false,
+            _ => {}
         }
     }
 
