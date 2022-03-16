@@ -1,37 +1,66 @@
 mod camera;
+mod loader;
 
 use camera::FirstPerson;
+use cgmath::Euler;
 use itertools::Either;
+use loader::Loader;
 use std::env::args;
 use std::fs;
 use thiserror::Error;
 use three_d::*;
-use vbsp::{Bsp, Handle};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_tree::HierarchicalLayer;
+use vbsp::{Bsp, Handle, StaticPropLump};
+use vmdl::mdl::Mdl;
+use vmdl::vtx::Vtx;
+use vmdl::vvd::Vvd;
 
 #[derive(Debug, Error)]
-enum Error {
+pub enum Error {
     #[error(transparent)]
     Three(#[from] Box<dyn std::error::Error>),
     #[error(transparent)]
     Bsp(#[from] vbsp::BspError),
     #[error(transparent)]
     IO(#[from] std::io::Error),
+    #[error(transparent)]
+    Vpk(#[from] vpk::Error),
+    #[error(transparent)]
+    Mdl(#[from] vmdl::ModelError),
     #[error("{0}")]
     Other(&'static str),
 }
 
+impl From<&'static str> for Error {
+    fn from(e: &'static str) -> Self {
+        Error::Other(e)
+    }
+}
+
 fn main() -> Result<(), Error> {
     miette::set_panic_hook();
+    Registry::default()
+        .with(EnvFilter::from_default_env())
+        .with(
+            HierarchicalLayer::new(2)
+                .with_targets(true)
+                .with_bracketed_fields(true),
+        )
+        .init();
 
     let mut args = args();
-    let bin = args.next().unwrap();
+    let _bin = args.next().unwrap();
     let file = match args.next() {
         Some(file) => file,
         None => {
-            eprintln!("usage: {} <file.bsp>", bin);
-            return Ok(());
+            "koth_bagel_rc2a.bsp".into()
+            // eprintln!("usage: {} <file.bsp>", bin);
+            // return Ok(());
         }
     };
+
+    let loader = Loader::new()?;
 
     let window = Window::new(WindowSettings {
         title: file.clone(),
@@ -45,8 +74,7 @@ fn main() -> Result<(), Error> {
 
     let context = window.gl().unwrap();
 
-    let mut cpu_mesh = model_to_mesh(world_model);
-    cpu_mesh.compute_normals();
+    let cpu_mesh = model_to_mesh(world_model);
     let forward_pipeline = ForwardPipeline::new(&context).unwrap();
     let mut camera = Camera::new_perspective(
         &context,
@@ -72,7 +100,12 @@ fn main() -> Result<(), Error> {
         ..Default::default()
     };
 
-    let model = Model::new_with_material(&context, &cpu_mesh, material)?;
+    let mut model = Model::new_with_material(&context, &cpu_mesh, material.clone())?;
+    // model.set_transformation(Mat4::from_angle_x(degrees(-90.0)));
+    let props = bsp
+        .static_props()
+        .map(|prop| load_prop(&loader, prop, &context, material.clone()))
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut lights = Lights {
         ambient: Some(AmbientLight {
@@ -176,6 +209,13 @@ fn main() -> Result<(), Error> {
                             &camera,
                             &lights,
                         )?;
+                        for prop in &props {
+                            prop.render_with_material(
+                                &NormalMaterial::from_physical_material(&model.material),
+                                &camera,
+                                &lights,
+                            )?;
+                        }
                     }
                     DebugType::DEPTH => {
                         let mut depth_material = DepthMaterial::default();
@@ -233,12 +273,71 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
                 .map(|verts| Either::Left(verts))
                 .unwrap_or_else(|| Either::Right(face.triangulate().flat_map(|verts| verts)))
         })
-        .flat_map(|vertex| [-vertex.x, vertex.z, vertex.y])
+        .flat_map(<[f32; 3]>::from)
         .map(|c| c * UNIT_SCALE)
         .collect();
 
+    let mut mesh = CPUMesh {
+        positions,
+        ..Default::default()
+    };
+
+    mesh.compute_normals();
+
+    mesh
+}
+
+fn load_prop<M: Material>(
+    loader: &Loader,
+    prop: Handle<StaticPropLump>,
+    context: &Context,
+    material: M,
+) -> Result<Model<M>, Error> {
+    let mesh = load_prop_mesh(loader, prop.model())?;
+    let mut model = Model::new_with_material(context, &mesh, material)?;
+    let translation = Mat4::from_translation(<[f32; 3]>::from(prop.origin * UNIT_SCALE).into());
+    let rotation = Mat4::from(Euler {
+        x: degrees(prop.angles[0]),
+        y: degrees(prop.angles[1]),
+        z: degrees(prop.angles[2]),
+    });
+    let world = Mat4::from_angle_x(degrees(-90.0));
+    model.set_transformation(translation);
+    Ok(model)
+}
+
+#[tracing::instrument(skip(loader))]
+fn load_prop_mesh(loader: &Loader, name: &str) -> Result<CPUMesh, Error> {
+    let mdl = Mdl::read(&loader.load(name)?)?;
+    let vtx = Vtx::read(&loader.load(&name.replace(".mdl", ".dx90.vtx"))?)?;
+    let vvd = Vvd::read(&loader.load(&name.replace(".mdl", ".vvd"))?)?;
+
+    let model = vmdl::Model::from_parts(mdl, vtx, vvd);
+    Ok(prop_to_mesh(&model))
+}
+
+fn prop_to_mesh(model: &vmdl::Model) -> CPUMesh {
+    let positions: Vec<f32> = model
+        .vertices()
+        .iter()
+        .flat_map(|vertex| vertex.position.iter().map(|pos| pos * UNIT_SCALE))
+        .collect();
+    let normals: Vec<f32> = model
+        .vertices()
+        .iter()
+        .flat_map(|vertex| vertex.normal.iter())
+        .collect();
+    let indices = Indices::U32(
+        model
+            .vertex_strip_indices()
+            .flat_map(|strip| strip.map(|index| index as u32))
+            .collect(),
+    );
+
     CPUMesh {
         positions,
+        normals: Some(normals),
+        indices: Some(indices),
         ..Default::default()
     }
 }
