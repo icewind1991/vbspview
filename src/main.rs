@@ -100,12 +100,13 @@ fn main() -> Result<(), Error> {
         ..Default::default()
     };
 
-    let mut model = Model::new_with_material(&context, &cpu_mesh, material.clone())?;
-    // model.set_transformation(Mat4::from_angle_x(degrees(-90.0)));
+    let model = Model::new_with_material(&context, &cpu_mesh, material.clone())?;
     let props = bsp
         .static_props()
-        .map(|prop| load_prop(&loader, prop, &context, material.clone()))
+        .map(|prop| load_prop(&loader, prop))
         .collect::<Result<Vec<_>, _>>()?;
+    let merged_props = merge_meshes(props);
+    let props_model = Model::new_with_material(&context, &merged_props, material)?;
 
     let mut lights = Lights {
         ambient: Some(AmbientLight {
@@ -209,13 +210,11 @@ fn main() -> Result<(), Error> {
                             &camera,
                             &lights,
                         )?;
-                        for prop in &props {
-                            prop.render_with_material(
-                                &NormalMaterial::from_physical_material(&model.material),
-                                &camera,
-                                &lights,
-                            )?;
-                        }
+                        props_model.render_with_material(
+                            &NormalMaterial::from_physical_material(&model.material),
+                            &camera,
+                            &lights,
+                        )?;
                     }
                     DebugType::DEPTH => {
                         let mut depth_material = DepthMaterial::default();
@@ -260,6 +259,15 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
+fn map_coords<C: Into<[f32; 3]>>(vec: C) -> [f32; 3] {
+    let vec = vec.into();
+    [
+        -vec[0] * UNIT_SCALE,
+        vec[2] * UNIT_SCALE,
+        vec[1] * UNIT_SCALE,
+    ]
+}
+
 // 1 hammer unit is ~1.905cm
 const UNIT_SCALE: f32 = 1.0 / (1.905 * 100.0);
 
@@ -273,8 +281,7 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
                 .map(|verts| Either::Left(verts))
                 .unwrap_or_else(|| Either::Right(face.triangulate().flat_map(|verts| verts)))
         })
-        .flat_map(<[f32; 3]>::from)
-        .map(|c| c * UNIT_SCALE)
+        .flat_map(map_coords)
         .collect();
 
     let mut mesh = CPUMesh {
@@ -287,23 +294,17 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
     mesh
 }
 
-fn load_prop<M: Material>(
-    loader: &Loader,
-    prop: Handle<StaticPropLump>,
-    context: &Context,
-    material: M,
-) -> Result<Model<M>, Error> {
-    let mesh = load_prop_mesh(loader, prop.model())?;
-    let mut model = Model::new_with_material(context, &mesh, material)?;
-    let translation = Mat4::from_translation(<[f32; 3]>::from(prop.origin * UNIT_SCALE).into());
+fn load_prop(loader: &Loader, prop: Handle<StaticPropLump>) -> Result<CPUMesh, Error> {
+    let mut mesh = load_prop_mesh(loader, prop.model())?;
+    let translation = Mat4::from_translation(map_coords(prop.origin).into());
     let rotation = Mat4::from(Euler {
         x: degrees(prop.angles[0]),
         y: degrees(prop.angles[1]),
         z: degrees(prop.angles[2]),
     });
-    let world = Mat4::from_angle_x(degrees(-90.0));
-    model.set_transformation(translation);
-    Ok(model)
+    mesh.transform(&rotation);
+    mesh.transform(&translation);
+    Ok(mesh)
 }
 
 #[tracing::instrument(skip(loader))]
@@ -320,12 +321,12 @@ fn prop_to_mesh(model: &vmdl::Model) -> CPUMesh {
     let positions: Vec<f32> = model
         .vertices()
         .iter()
-        .flat_map(|vertex| vertex.position.iter().map(|pos| pos * UNIT_SCALE))
+        .flat_map(|v| map_coords(v.position))
         .collect();
     let normals: Vec<f32> = model
         .vertices()
         .iter()
-        .flat_map(|vertex| vertex.normal.iter())
+        .flat_map(|vertex| map_coords(vertex.normal))
         .collect();
     let indices = Indices::U32(
         model
@@ -334,10 +335,37 @@ fn prop_to_mesh(model: &vmdl::Model) -> CPUMesh {
             .collect(),
     );
 
-    CPUMesh {
+    let mut mesh = CPUMesh {
         positions,
         normals: Some(normals),
         indices: Some(indices),
+        ..Default::default()
+    };
+    mesh.compute_normals();
+    mesh
+}
+
+fn merge_meshes<I: IntoIterator<Item = CPUMesh>>(meshes: I) -> CPUMesh {
+    let mut positions = Vec::new();
+    let mut normals = Vec::new();
+    let mut indices = Vec::new();
+
+    for mesh in meshes {
+        mesh.validate().expect("invalid mesh");
+        let offset = positions.len() as u32 / 3;
+        positions.extend_from_slice(&mesh.positions);
+        normals.extend_from_slice(&mesh.normals.unwrap());
+        if let Indices::U32(mesh_indices) = mesh.indices.unwrap() {
+            indices.extend(mesh_indices.into_iter().map(|index| index + offset));
+        } else {
+            unreachable!();
+        }
+    }
+
+    CPUMesh {
+        positions,
+        normals: Some(normals),
+        indices: Some(Indices::U32(indices)),
         ..Default::default()
     }
 }
