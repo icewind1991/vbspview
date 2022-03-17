@@ -220,9 +220,15 @@ fn main() -> Result<(), Error> {
                         let mut depth_material = DepthMaterial::default();
                         depth_material.max_distance = Some(depth_max);
                         model.render_with_material(&depth_material, &camera, &lights)?;
+                        props_model.render_with_material(&depth_material, &camera, &lights)?;
                     }
                     DebugType::ORM => {
                         model.render_with_material(
+                            &ORMMaterial::from_physical_material(&model.material),
+                            &camera,
+                            &lights,
+                        )?;
+                        props_model.render_with_material(
                             &ORMMaterial::from_physical_material(&model.material),
                             &camera,
                             &lights,
@@ -231,10 +237,12 @@ fn main() -> Result<(), Error> {
                     DebugType::POSITION => {
                         let position_material = PositionMaterial::default();
                         model.render_with_material(&position_material, &camera, &lights)?;
+                        props_model.render_with_material(&position_material, &camera, &lights)?;
                     }
                     DebugType::UV => {
                         let uv_material = UVMaterial::default();
                         model.render_with_material(&uv_material, &camera, &lights)?;
+                        props_model.render_with_material(&uv_material, &camera, &lights)?;
                     }
                     DebugType::COLOR => {
                         model.render_with_material(
@@ -242,8 +250,15 @@ fn main() -> Result<(), Error> {
                             &camera,
                             &lights,
                         )?;
+                        props_model.render_with_material(
+                            &ColorMaterial::from_physical_material(&model.material),
+                            &camera,
+                            &lights,
+                        )?;
                     }
-                    DebugType::NONE => forward_pipeline.render_pass(&camera, &[&model], &lights)?,
+                    DebugType::NONE => {
+                        forward_pipeline.render_pass(&camera, &[&model, &props_model], &lights)?
+                    }
                 };
                 gui.render()?;
                 Ok(())
