@@ -48,7 +48,7 @@ impl Loader {
                 return Ok(data);
             }
         }
-        error!("Failed to find file in vpk");
+        error!("Failed to find {} in vpk", name);
         Err(Error::Other("Can't find file in vpks"))
     }
 }

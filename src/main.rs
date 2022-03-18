@@ -79,7 +79,7 @@ fn main() -> Result<(), Error> {
     let mut camera = Camera::new_perspective(
         &context,
         window.viewport().unwrap(),
-        vec3(4.0, 4.0, 11.0),
+        vec3(9.0, 4.0, 5.0),
         vec3(0.0, 0.0, 0.0),
         vec3(0.0, 1.0, 0.0),
         degrees(90.0),
@@ -126,7 +126,7 @@ fn main() -> Result<(), Error> {
     let mut directional_intensity = lights.directional[0].intensity();
     let mut depth_max = 30.0;
     let mut fov = 60.0;
-    let mut debug_type = DebugType::NONE;
+    let mut debug_type = DebugType::NORMAL;
 
     window.render_loop(move |mut frame_input| {
         let mut change = frame_input.first_frame;
@@ -277,9 +277,9 @@ fn main() -> Result<(), Error> {
 fn map_coords<C: Into<[f32; 3]>>(vec: C) -> [f32; 3] {
     let vec = vec.into();
     [
-        -vec[0] * UNIT_SCALE,
-        vec[2] * UNIT_SCALE,
         vec[1] * UNIT_SCALE,
+        vec[2] * UNIT_SCALE,
+        vec[0] * UNIT_SCALE,
     ]
 }
 
@@ -311,6 +311,7 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
 
 fn load_prop(loader: &Loader, prop: Handle<StaticPropLump>) -> Result<CPUMesh, Error> {
     let mut mesh = load_prop_mesh(loader, prop.model())?;
+
     let translation = Mat4::from_translation(map_coords(prop.origin).into());
     let rotation = Mat4::from(Euler {
         x: degrees(prop.angles[0]),
