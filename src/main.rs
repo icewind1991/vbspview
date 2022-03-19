@@ -2,7 +2,6 @@ mod camera;
 mod loader;
 
 use camera::FirstPerson;
-use cgmath::Euler;
 use itertools::Either;
 use loader::Loader;
 use std::env::args;
@@ -312,25 +311,9 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
 fn load_prop(loader: &Loader, prop: Handle<StaticPropLump>) -> Result<CPUMesh, Error> {
     let mut mesh = load_prop_mesh(loader, prop.model())?;
 
-    let translation = Mat4::from_translation(map_coords(prop.origin).into());
-    // manually do axis one by one as source seems to do roll, patch, yaw
-    // while cgmath does yaw, pitch, roll (as directx does?)
-    mesh.transform(&Mat4::from(Euler {
-        x: degrees(0.0),
-        y: degrees(0.0),
-        z: degrees(prop.angles[2]),
-    }));
-    mesh.transform(&Mat4::from(Euler {
-        x: degrees(prop.angles[0]),
-        y: degrees(0.0),
-        z: degrees(0.0),
-    }));
-    mesh.transform(&Mat4::from(Euler {
-        x: degrees(0.0),
-        y: degrees(prop.angles[1]),
-        z: degrees(0.0),
-    }));
-    mesh.transform(&translation);
+    let transform =
+        Mat4::from_translation(map_coords(prop.origin).into()) * Mat4::from(prop.rotation());
+    mesh.transform(&transform);
     Ok(mesh)
 }
 

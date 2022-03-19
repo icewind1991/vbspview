@@ -2636,6 +2636,7 @@ dependencies = [
  "binrw",
  "bitflags",
  "bv",
+ "cgmath",
  "lzma-rs",
  "num_enum",
  "static_assertions",
