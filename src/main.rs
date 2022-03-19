@@ -5,7 +5,8 @@ use camera::FirstPerson;
 use itertools::Either;
 use loader::Loader;
 use std::env::args;
-use std::fs;
+use std::path::Path;
+use std::time::Instant;
 use thiserror::Error;
 use three_d::*;
 use tracing_subscriber::{prelude::*, EnvFilter};
@@ -72,13 +73,9 @@ fn main() -> Result<(), Error> {
         ..Default::default()
     })?;
 
-    let data = fs::read(&file)?;
-    let bsp = Bsp::read(&data)?;
-    let world_model = bsp.models().next().ok_or(Error::Other("No world model"))?;
-
     let context = window.gl().unwrap();
 
-    let cpu_mesh = model_to_mesh(world_model);
+    let (cpu_mesh, bsp) = load_world(file.as_ref())?;
     let forward_pipeline = ForwardPipeline::new(&context).unwrap();
     let mut camera = Camera::new_perspective(
         &context,
@@ -358,6 +355,16 @@ fn prop_to_mesh(model: &vmdl::Model) -> CPUMesh {
     };
     mesh.compute_normals();
     mesh
+}
+
+fn load_world(path: &Path) -> Result<(CPUMesh, Bsp), Error> {
+    use mmarinus::{perms, Kind};
+
+    let map = Kind::Private.load::<perms::Read, _>(path).unwrap();
+    let bsp = Bsp::read(map.as_ref())?;
+    let world_model = bsp.models().next().ok_or(Error::Other("No world model"))?;
+
+    Ok((model_to_mesh(world_model), bsp))
 }
 
 fn merge_meshes<I: IntoIterator<Item = CPUMesh>>(meshes: I) -> CPUMesh {
