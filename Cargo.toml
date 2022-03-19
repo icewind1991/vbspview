@@ -13,7 +13,7 @@ thiserror = "1.0.30"
 delaunator = "1.0.1"
 itertools = "0.10.3"
 steamlocate = "1.0.1"
-vpk = { version = "0.1.2", path = "../vpk-rs" }
+vpk = { version = "0.1.4", path = "../vpk-rs" }
 vmdl = { version = "*", path = "../vmdl" }
 tracing = "0.1.29"
 tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
@@ -22,3 +22,6 @@ cgmath = "0.18.0"
 
 [profile.dev.package."*"]
 opt-level = 2
+
+[profile.release]
+debug = true

@@ -8,7 +8,7 @@ use std::env::args;
 use std::fs;
 use thiserror::Error;
 use three_d::*;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{prelude::*, EnvFilter};
 use tracing_tree::HierarchicalLayer;
 use vbsp::{Bsp, Handle, StaticPropLump};
 use vmdl::mdl::Mdl;
@@ -37,9 +37,10 @@ impl From<&'static str> for Error {
     }
 }
 
-fn main() -> Result<(), Error> {
+fn setup() {
     miette::set_panic_hook();
-    Registry::default()
+
+    tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
         .with(
             HierarchicalLayer::new(2)
@@ -47,6 +48,10 @@ fn main() -> Result<(), Error> {
                 .with_bracketed_fields(true),
         )
         .init();
+}
+
+fn main() -> Result<(), Error> {
+    setup();
 
     let mut args = args();
     let _bin = args.next().unwrap();
