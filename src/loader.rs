@@ -32,7 +32,7 @@ impl Loader {
             .read_dir()?
             .filter_map(|item| item.ok())
             .filter_map(|item| Some(item.path().to_str()?.to_string()))
-            .filter(|path| path.ends_with(".vpk"))
+            .filter(|path| path.ends_with("dir.vpk"))
             .map(|path| vpk::from_path(&path))
             .filter_map(|res| res.ok())
             .collect();
@@ -42,7 +42,7 @@ impl Loader {
 
     #[tracing::instrument]
     pub fn load(&self, name: &str) -> Result<Vec<u8>, Error> {
-        debug!("loading file");
+        debug!("loading {}", name);
         if let Some(data) = self.pack.get(name)? {
             debug!("got {} bytes from packfile", data.len());
             return Ok(data);
