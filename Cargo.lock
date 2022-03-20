@@ -2669,6 +2669,7 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 [[package]]
 name = "vbsp"
 version = "0.1.0"
+source = "git+https://github.com/icewind1991/vbsp#6f959a019c8e40d914fe6cac916a8abdb37f37b3"
 dependencies = [
  "arrayvec 0.7.2",
  "binrw",
@@ -2686,6 +2687,7 @@ dependencies = [
 [[package]]
 name = "vbsp-derive"
 version = "0.1.0"
+source = "git+https://github.com/icewind1991/vbsp#6f959a019c8e40d914fe6cac916a8abdb37f37b3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2728,6 +2730,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vmdl"
 version = "0.1.0"
+source = "git+https://github.com/icewind1991/vmdl#bb4dfddde2dc226d2b278a56cbd610d43ddcb397"
 dependencies = [
  "arrayvec 0.7.2",
  "bitflags",
@@ -2741,6 +2744,7 @@ dependencies = [
 [[package]]
 name = "vpk"
 version = "0.1.4"
+source = "git+https://github.com/icewind1991/vpk-rs?branch=perf#38e69cf684494f4505e111ffdcd82468af8192e9"
 dependencies = [
  "ahash",
  "binread",
@@ -3066,6 +3070,7 @@ checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
 [[package]]
 name = "zip"
 version = "0.5.13"
+source = "git+https://github.com/icewind1991/zip?branch=lzma-decompression#1b4f85e58dc2d24887a02a3a8014a4f6950c9e92"
 dependencies = [
  "byteorder 1.4.3",
  "crc32fast",
