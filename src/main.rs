@@ -1,7 +1,9 @@
 mod camera;
 mod loader;
+mod renderer;
 mod ui;
 
+use crate::renderer::Renderer;
 use crate::ui::DebugUI;
 use camera::FirstPerson;
 use itertools::Either;
@@ -56,13 +58,12 @@ fn main() -> Result<(), Error> {
     setup();
 
     let mut args = args();
-    let _bin = args.next().unwrap();
+    let bin = args.next().unwrap();
     let file = match args.next() {
         Some(file) => file,
         None => {
-            "koth_bagel_rc2a.bsp".into()
-            // eprintln!("usage: {} <file.bsp>", bin);
-            // return Ok(());
+            eprintln!("usage: {} <file.bsp>", bin);
+            return Ok(());
         }
     };
 
@@ -72,24 +73,9 @@ fn main() -> Result<(), Error> {
         ..Default::default()
     })?;
 
-    let context = window.gl().unwrap();
+    let mut renderer = Renderer::new(&window)?;
 
     let (cpu_mesh, bsp) = load_world(file.as_ref())?;
-    let forward_pipeline = ForwardPipeline::new(&context).unwrap();
-    let mut camera = Camera::new_perspective(
-        &context,
-        window.viewport().unwrap(),
-        vec3(9.0, 4.0, 5.0),
-        vec3(0.0, 0.0, 0.0),
-        vec3(0.0, 1.0, 0.0),
-        degrees(90.0),
-        0.1,
-        30.0,
-    )
-    .unwrap();
-    let mut control = FirstPerson::new(0.1);
-    let mut gui = DebugUI::new(&context)?;
-
     let material = PhysicalMaterial {
         albedo: Color {
             r: 128,
@@ -101,132 +87,16 @@ fn main() -> Result<(), Error> {
     };
 
     let loader = Loader::new(bsp.pack.clone())?;
-    let model = Model::new_with_material(&context, &cpu_mesh, material.clone())?;
+    let model = Model::new_with_material(&renderer.context, &cpu_mesh, material.clone())?;
     let props = bsp
         .static_props()
         .map(|prop| load_prop(&loader, prop))
         .collect::<Result<Vec<_>, _>>()?;
     let merged_props = merge_meshes(props);
-    let props_model = Model::new_with_material(&context, &merged_props, material)?;
+    let props_model = Model::new_with_material(&renderer.context, &merged_props, material)?;
+    renderer.models = vec![model, props_model];
 
-    let mut lights = Lights {
-        ambient: Some(AmbientLight {
-            color: Color::WHITE,
-            intensity: 0.2,
-            ..Default::default()
-        }),
-        directional: vec![
-            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, -1.0, 0.0))?,
-            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, 1.0, 0.0))?,
-        ],
-        ..Default::default()
-    };
-
-    window.render_loop(move |mut frame_input| {
-        let (ui_change, panel_width) = gui.update(&mut frame_input, &camera).unwrap();
-        let mut change = frame_input.first_frame || ui_change;
-        if change {
-            if gui.shadows_enabled {
-                lights.directional[0]
-                    .generate_shadow_map(4.0, 1024, 1024, &[&model])
-                    .unwrap();
-                lights.directional[1]
-                    .generate_shadow_map(4.0, 1024, 1024, &[&model])
-                    .unwrap();
-            } else {
-                lights.directional[0].clear_shadow_map();
-                lights.directional[1].clear_shadow_map();
-            }
-            lights.directional[0].set_intensity(gui.directional_intensity);
-            lights.directional[1].set_intensity(gui.directional_intensity);
-            lights.ambient.as_mut().unwrap().intensity = gui.ambient_intensity;
-            camera
-                .set_perspective_projection(degrees(gui.fov), camera.z_near(), camera.z_far())
-                .unwrap();
-        }
-
-        let viewport = Viewport {
-            x: panel_width as i32,
-            y: 0,
-            width: frame_input.viewport.width - panel_width,
-            height: frame_input.viewport.height,
-        };
-        change |= camera.set_viewport(viewport).unwrap();
-        change |= control
-            .handle_events(&mut camera, &mut frame_input.events)
-            .unwrap();
-
-        // Draw
-        {
-            // Light pass
-            Screen::write(&context, ClearState::default(), || {
-                match gui.debug_type {
-                    DebugType::NORMAL => {
-                        model.render_with_material(
-                            &NormalMaterial::from_physical_material(&model.material),
-                            &camera,
-                            &lights,
-                        )?;
-                        props_model.render_with_material(
-                            &NormalMaterial::from_physical_material(&model.material),
-                            &camera,
-                            &lights,
-                        )?;
-                    }
-                    DebugType::DEPTH => {
-                        let mut depth_material = DepthMaterial::default();
-                        depth_material.max_distance = Some(gui.depth_max);
-                        model.render_with_material(&depth_material, &camera, &lights)?;
-                        props_model.render_with_material(&depth_material, &camera, &lights)?;
-                    }
-                    DebugType::ORM => {
-                        model.render_with_material(
-                            &ORMMaterial::from_physical_material(&model.material),
-                            &camera,
-                            &lights,
-                        )?;
-                        props_model.render_with_material(
-                            &ORMMaterial::from_physical_material(&model.material),
-                            &camera,
-                            &lights,
-                        )?;
-                    }
-                    DebugType::POSITION => {
-                        let position_material = PositionMaterial::default();
-                        model.render_with_material(&position_material, &camera, &lights)?;
-                        props_model.render_with_material(&position_material, &camera, &lights)?;
-                    }
-                    DebugType::UV => {
-                        let uv_material = UVMaterial::default();
-                        model.render_with_material(&uv_material, &camera, &lights)?;
-                        props_model.render_with_material(&uv_material, &camera, &lights)?;
-                    }
-                    DebugType::COLOR => {
-                        model.render_with_material(
-                            &ColorMaterial::from_physical_material(&model.material),
-                            &camera,
-                            &lights,
-                        )?;
-                        props_model.render_with_material(
-                            &ColorMaterial::from_physical_material(&model.material),
-                            &camera,
-                            &lights,
-                        )?;
-                    }
-                    DebugType::NONE => {
-                        forward_pipeline.render_pass(&camera, &[&model, &props_model], &lights)?
-                    }
-                };
-                gui.render()?;
-                Ok(())
-            })
-            .unwrap();
-        }
-
-        let _ = change;
-
-        FrameOutput::default()
-    })?;
+    window.render_loop(move |frame_input| renderer.render(frame_input).unwrap())?;
 
     Ok(())
 }
@@ -250,8 +120,8 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
         .flat_map(|face| {
             face.displacement()
                 .map(|displacement| displacement.triangulated_displaced_vertices())
-                .map(|verts| Either::Left(verts))
-                .unwrap_or_else(|| Either::Right(face.triangulate().flat_map(|verts| verts)))
+                .map(Either::Left)
+                .unwrap_or_else(|| Either::Right(face.triangulate().flatten()))
         })
         .flat_map(map_coords)
         .collect();
