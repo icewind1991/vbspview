@@ -1,6 +1,8 @@
 mod camera;
 mod loader;
+mod ui;
 
+use crate::ui::DebugUI;
 use camera::FirstPerson;
 use itertools::Either;
 use loader::Loader;
@@ -86,7 +88,7 @@ fn main() -> Result<(), Error> {
     )
     .unwrap();
     let mut control = FirstPerson::new(0.1);
-    let mut gui = three_d::GUI::new(&context).unwrap();
+    let mut gui = DebugUI::new(&context)?;
 
     let material = PhysicalMaterial {
         albedo: Color {
@@ -120,60 +122,28 @@ fn main() -> Result<(), Error> {
         ..Default::default()
     };
 
-    // main loop
-    let mut shadows_enabled = false;
-    let mut directional_intensity = lights.directional[0].intensity();
-    let mut depth_max = 30.0;
-    let mut fov = 60.0;
-    let mut debug_type = DebugType::NORMAL;
-
     window.render_loop(move |mut frame_input| {
-        let mut change = frame_input.first_frame;
-        let mut panel_width = frame_input.viewport.width;
-        change |= gui
-            .update(&mut frame_input, |gui_context| {
-                use three_d::egui::*;
-                SidePanel::left("side_panel").show(gui_context, |ui| {
-                    ui.heading("Debug Panel");
-
-                    ui.label("Light options");
-                    ui.add(
-                        Slider::new(&mut lights.ambient.as_mut().unwrap().intensity, 0.0..=1.0)
-                            .text("Ambient intensity"),
-                    );
-                    ui.add(
-                        Slider::new(&mut directional_intensity, 0.0..=1.0)
-                            .text("Directional intensity"),
-                    );
-                    lights.directional[0].set_intensity(directional_intensity);
-                    lights.directional[1].set_intensity(directional_intensity);
-                    if ui.checkbox(&mut shadows_enabled, "Shadows").clicked() {
-                        if !shadows_enabled {
-                            lights.directional[0].clear_shadow_map();
-                            lights.directional[1].clear_shadow_map();
-                        }
-                    }
-
-                    ui.label("Debug options");
-                    ui.radio_value(&mut debug_type, DebugType::NONE, "None");
-                    ui.radio_value(&mut debug_type, DebugType::POSITION, "Position");
-                    ui.radio_value(&mut debug_type, DebugType::NORMAL, "Normal");
-                    ui.radio_value(&mut debug_type, DebugType::COLOR, "Color");
-                    ui.radio_value(&mut debug_type, DebugType::DEPTH, "Depth");
-                    ui.radio_value(&mut debug_type, DebugType::ORM, "ORM");
-
-                    ui.label("View options");
-                    ui.add(Slider::new(&mut depth_max, 1.0..=30.0).text("Depth max"));
-                    ui.add(Slider::new(&mut fov, 45.0..=90.0).text("FOV"));
-
-                    ui.label("Position");
-                    ui.add(Label::new(format!("\tx: {}", camera.position().x)));
-                    ui.add(Label::new(format!("\ty: {}", camera.position().y)));
-                    ui.add(Label::new(format!("\tz: {}", camera.position().z)));
-                });
-                panel_width = gui_context.used_size().x as u32;
-            })
-            .unwrap();
+        let (ui_change, panel_width) = gui.update(&mut frame_input, &camera).unwrap();
+        let mut change = frame_input.first_frame || ui_change;
+        if change {
+            if gui.shadows_enabled {
+                lights.directional[0]
+                    .generate_shadow_map(4.0, 1024, 1024, &[&model])
+                    .unwrap();
+                lights.directional[1]
+                    .generate_shadow_map(4.0, 1024, 1024, &[&model])
+                    .unwrap();
+            } else {
+                lights.directional[0].clear_shadow_map();
+                lights.directional[1].clear_shadow_map();
+            }
+            lights.directional[0].set_intensity(gui.directional_intensity);
+            lights.directional[1].set_intensity(gui.directional_intensity);
+            lights.ambient.as_mut().unwrap().intensity = gui.ambient_intensity;
+            camera
+                .set_perspective_projection(degrees(gui.fov), camera.z_near(), camera.z_far())
+                .unwrap();
+        }
 
         let viewport = Viewport {
             x: panel_width as i32,
@@ -188,21 +158,9 @@ fn main() -> Result<(), Error> {
 
         // Draw
         {
-            camera
-                .set_perspective_projection(degrees(fov), camera.z_near(), camera.z_far())
-                .unwrap();
-            if shadows_enabled {
-                lights.directional[0]
-                    .generate_shadow_map(4.0, 1024, 1024, &[&model])
-                    .unwrap();
-                lights.directional[1]
-                    .generate_shadow_map(4.0, 1024, 1024, &[&model])
-                    .unwrap();
-            }
-
             // Light pass
             Screen::write(&context, ClearState::default(), || {
-                match debug_type {
+                match gui.debug_type {
                     DebugType::NORMAL => {
                         model.render_with_material(
                             &NormalMaterial::from_physical_material(&model.material),
@@ -217,7 +175,7 @@ fn main() -> Result<(), Error> {
                     }
                     DebugType::DEPTH => {
                         let mut depth_material = DepthMaterial::default();
-                        depth_material.max_distance = Some(depth_max);
+                        depth_material.max_distance = Some(gui.depth_max);
                         model.render_with_material(&depth_material, &camera, &lights)?;
                         props_model.render_with_material(&depth_material, &camera, &lights)?;
                     }
