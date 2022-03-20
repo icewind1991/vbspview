@@ -184,9 +184,7 @@ fn prop_to_mesh(model: &vmdl::Model) -> CPUMesh {
 }
 
 fn load_world(path: &Path) -> Result<(CPUMesh, Bsp), Error> {
-    use mmarinus::{perms, Kind};
-
-    let map = Kind::Private.load::<perms::Read, _>(path).unwrap();
+    let map = std::fs::read(path)?;
     let bsp = Bsp::read(map.as_ref())?;
     let world_model = bsp.models().next().ok_or(Error::Other("No world model"))?;
 

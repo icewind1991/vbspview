@@ -1497,15 +1497,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mmarinus"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f001c2c323e765b22d8248a0b8a7f8f66672a007babf01c380b579cc71e862c"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2703,7 +2694,6 @@ dependencies = [
  "delaunator",
  "itertools",
  "miette",
- "mmarinus",
  "steamlocate",
  "thiserror",
  "three-d",
