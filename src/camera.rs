@@ -4,6 +4,7 @@ pub struct FirstPerson {
     control: CameraControl,
     speed: f32,
     keys: [bool; 4],
+    pub debug: bool,
 }
 
 impl FirstPerson {
@@ -20,6 +21,7 @@ impl FirstPerson {
             },
             speed,
             keys: [false; 4],
+            debug: true,
         }
     }
 
@@ -31,6 +33,11 @@ impl FirstPerson {
         let change = self.control.handle_events(camera, events)?;
         for event in events.iter_mut() {
             match event {
+                Event::Text(text) => {
+                    if text == "`" {
+                        self.debug = !self.debug;
+                    }
+                }
                 Event::KeyPress { kind, .. } => {
                     self.key_press(kind);
                 }

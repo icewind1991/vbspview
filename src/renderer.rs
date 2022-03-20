@@ -52,7 +52,7 @@ impl Renderer {
     }
 
     pub fn render(&mut self, mut frame_input: FrameInput) -> ThreeDResult<FrameOutput> {
-        let (ui_change, panel_width) = self.gui.update(&mut frame_input, &self.camera)?;
+        let (ui_change, _panel_width) = self.gui.update(&mut frame_input, &self.camera)?;
         let change = frame_input.first_frame || ui_change;
         if change {
             if self.gui.shadows_enabled {
@@ -79,9 +79,9 @@ impl Renderer {
         }
 
         let viewport = Viewport {
-            x: panel_width as i32,
+            x: 0,
             y: 0,
-            width: frame_input.viewport.width - panel_width,
+            width: frame_input.viewport.width,
             height: frame_input.viewport.height,
         };
         self.camera.set_viewport(viewport).unwrap();
@@ -149,7 +149,9 @@ impl Renderer {
                         .render_pass(&self.camera, &self.models, &self.lights)?
                 }
             };
-            self.gui.render()?;
+            if self.control.debug {
+                self.gui.render()?;
+            }
             Ok(())
         })?;
         Ok(FrameOutput::default())
