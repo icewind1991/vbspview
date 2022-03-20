@@ -235,7 +235,7 @@ checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 dependencies = [
  "block-padding",
  "byte-tools",
- "byteorder",
+ "byteorder 1.4.3",
  "generic-array",
 ]
 
@@ -294,6 +294,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "byteorder"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
 
 [[package]]
 name = "byteorder"
@@ -608,7 +614,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73770f8e1fe7d64df17ca66ad28994a0a623ea497fa69486e14984e715c5d174"
 dependencies = [
  "adler32",
- "byteorder",
+ "byteorder 1.4.3",
 ]
 
 [[package]]
@@ -895,7 +901,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ff38b75359a0096dd0a8599b6e4f37a6ee41d5df300cc7669e62aafa697f7a2"
 dependencies = [
  "base64 0.12.3",
- "byteorder",
+ "byteorder 1.4.3",
  "gltf-json",
  "image",
  "lazy_static",
@@ -1132,7 +1138,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24ffcb7e7244a9bf19d35bf2883b9c080c4ced3c07a9895572178cdb8f13f6a1"
 dependencies = [
  "bytemuck",
- "byteorder",
+ "byteorder 1.4.3",
  "color_quant",
  "gif",
  "jpeg-decoder",
@@ -1308,12 +1314,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lzma"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "782ba3f542e8bc1349386c15e9dc3119ae6da96479f96b3863cc7a88bbdfd4e4"
+dependencies = [
+ "byteorder 0.5.3",
+]
+
+[[package]]
 name = "lzma-rs"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aba8ecb0450dfabce4ad72085eed0a75dffe8f21f7ada05638564ea9db2d7fb1"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
  "crc",
 ]
 
@@ -2665,6 +2680,7 @@ dependencies = [
  "static_assertions",
  "thiserror",
  "vbsp-derive",
+ "zip",
 ]
 
 [[package]]
@@ -3046,3 +3062,12 @@ name = "xml-rs"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
+
+[[package]]
+name = "zip"
+version = "0.5.13"
+dependencies = [
+ "byteorder 1.4.3",
+ "crc32fast",
+ "lzma",
+]

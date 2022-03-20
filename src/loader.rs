@@ -3,9 +3,11 @@ use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use steamlocate::SteamDir;
 use tracing::{debug, error};
+use vbsp::Packfile;
 use vpk::VPK;
 
 pub struct Loader {
+    pack: Packfile,
     tf_dir: PathBuf,
     vpks: Vec<VPK>,
 }
@@ -19,7 +21,7 @@ impl Debug for Loader {
 }
 
 impl Loader {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new(pack: Packfile) -> Result<Self, Error> {
         let tf_dir = SteamDir::locate()
             .ok_or("Can't find steam directory")?
             .app(&440)
@@ -35,16 +37,20 @@ impl Loader {
             .filter_map(|res| res.ok())
             .collect();
 
-        Ok(Loader { tf_dir, vpks })
+        Ok(Loader { pack, tf_dir, vpks })
     }
 
     #[tracing::instrument]
     pub fn load(&self, name: &str) -> Result<Vec<u8>, Error> {
-        debug!("loading file from vpk");
+        debug!("loading file");
+        if let Some(data) = self.pack.get(name)? {
+            debug!("got {} bytes from packfile", data.len());
+            return Ok(data);
+        }
         for vpk in self.vpks.iter() {
             if let Some(entry) = vpk.tree.get(name) {
                 let data = entry.get()?.into_owned();
-                debug!("got {} bytes", data.len());
+                debug!("got {} bytes from vpk", data.len());
                 return Ok(data);
             }
         }

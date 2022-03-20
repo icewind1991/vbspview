@@ -6,7 +6,6 @@ use itertools::Either;
 use loader::Loader;
 use std::env::args;
 use std::path::Path;
-use std::time::Instant;
 use thiserror::Error;
 use three_d::*;
 use tracing_subscriber::{prelude::*, EnvFilter};
@@ -65,8 +64,6 @@ fn main() -> Result<(), Error> {
         }
     };
 
-    let loader = Loader::new()?;
-
     let window = Window::new(WindowSettings {
         title: file.clone(),
         max_size: Some((1920, 1080)),
@@ -101,6 +98,7 @@ fn main() -> Result<(), Error> {
         ..Default::default()
     };
 
+    let loader = Loader::new(bsp.pack.clone())?;
     let model = Model::new_with_material(&context, &cpu_mesh, material.clone())?;
     let props = bsp
         .static_props()
