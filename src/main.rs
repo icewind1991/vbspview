@@ -88,11 +88,7 @@ fn main() -> Result<(), Error> {
 
     let loader = Loader::new(bsp.pack.clone())?;
     let model = Model::new_with_material(&renderer.context, &cpu_mesh, material.clone())?;
-    let props = bsp
-        .static_props()
-        .map(|prop| load_prop(&loader, prop))
-        .collect::<Result<Vec<_>, _>>()?;
-    let merged_props = merge_meshes(props);
+    let merged_props = load_props(&loader, bsp.static_props())?;
     let props_model = Model::new_with_material(&renderer.context, &merged_props, material)?;
     renderer.models = vec![model, props_model];
 
@@ -136,13 +132,18 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
     mesh
 }
 
-fn load_prop(loader: &Loader, prop: Handle<StaticPropLump>) -> Result<CPUMesh, Error> {
-    let mut mesh = load_prop_mesh(loader, prop.model())?;
+fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
+    loader: &Loader,
+    props: I,
+) -> Result<CPUMesh, Error> {
+    merge_meshes(props.map(|prop| {
+        let mut mesh = load_prop_mesh(loader, prop.model())?;
 
-    let transform =
-        Mat4::from_translation(map_coords(prop.origin).into()) * Mat4::from(prop.rotation());
-    mesh.transform(&transform);
-    Ok(mesh)
+        let transform =
+            Mat4::from_translation(map_coords(prop.origin).into()) * Mat4::from(prop.rotation());
+        mesh.transform(&transform);
+        Ok(mesh)
+    }))
 }
 
 #[tracing::instrument(skip(loader))]
@@ -173,14 +174,12 @@ fn prop_to_mesh(model: &vmdl::Model) -> CPUMesh {
             .collect(),
     );
 
-    let mut mesh = CPUMesh {
+    CPUMesh {
         positions,
         normals: Some(normals),
         indices: Some(indices),
         ..Default::default()
-    };
-    mesh.compute_normals();
-    mesh
+    }
 }
 
 fn load_world(path: &Path) -> Result<(CPUMesh, Bsp), Error> {
@@ -191,13 +190,15 @@ fn load_world(path: &Path) -> Result<(CPUMesh, Bsp), Error> {
     Ok((model_to_mesh(world_model), bsp))
 }
 
-fn merge_meshes<I: IntoIterator<Item = CPUMesh>>(meshes: I) -> CPUMesh {
+fn merge_meshes<I: IntoIterator<Item = Result<CPUMesh, Error>>>(
+    models: I,
+) -> Result<CPUMesh, Error> {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut indices = Vec::new();
 
-    for mesh in meshes {
-        mesh.validate().expect("invalid mesh");
+    for mesh in models {
+        let mesh = mesh?;
         let offset = positions.len() as u32 / 3;
         positions.extend_from_slice(&mesh.positions);
         normals.extend_from_slice(&mesh.normals.unwrap());
@@ -208,10 +209,10 @@ fn merge_meshes<I: IntoIterator<Item = CPUMesh>>(meshes: I) -> CPUMesh {
         }
     }
 
-    CPUMesh {
+    Ok(CPUMesh {
         positions,
         normals: Some(normals),
         indices: Some(Indices::U32(indices)),
         ..Default::default()
-    }
+    })
 }
