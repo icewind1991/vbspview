@@ -8,7 +8,7 @@ pub struct Renderer {
     pub context: Context,
     pipeline: ForwardPipeline,
     control: FirstPerson,
-    camera: Camera,
+    pub camera: Camera,
 }
 
 impl Renderer {
@@ -21,7 +21,7 @@ impl Renderer {
             vec3(9.0, 4.0, 5.0),
             vec3(0.0, 0.0, 0.0),
             vec3(0.0, 1.0, 0.0),
-            degrees(90.0),
+            degrees(60.0),
             0.1,
             30.0,
         )?;

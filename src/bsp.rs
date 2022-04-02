@@ -7,10 +7,10 @@ use vmdl::mdl::Mdl;
 use vmdl::vtx::Vtx;
 use vmdl::vvd::Vvd;
 
-pub fn load_map(data: &[u8]) -> Result<Vec<CPUMesh>, Error> {
+pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CPUMesh>, Error> {
     let (cpu_mesh, bsp) = load_world(data)?;
-    let loader = Loader::new(bsp.pack.clone())?;
-    let merged_props = load_props(&loader, bsp.static_props())?;
+    loader.set_pack(bsp.pack.clone());
+    let merged_props = load_props(loader, bsp.static_props())?;
     Ok(vec![cpu_mesh, merged_props])
 }
 
@@ -19,7 +19,7 @@ fn apply_transform(coord: [f32; 3], transform: Mat4) -> [f32; 3] {
     [coord.x, coord.y, coord.z]
 }
 
-fn map_coords<C: Into<[f32; 3]>>(vec: C) -> [f32; 3] {
+pub fn map_coords<C: Into<[f32; 3]>>(vec: C) -> [f32; 3] {
     let vec = vec.into();
     [
         vec[1] * UNIT_SCALE,

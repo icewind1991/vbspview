@@ -3,3 +3,4 @@
 *.obj
 perf.data*
 flamegraph.svg
+*.dem
