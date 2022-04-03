@@ -35,6 +35,7 @@ impl DebugUI {
         let change = self.ui.update(frame_input, |gui_context| {
             SidePanel::left("side_panel").show(gui_context, |ui| {
                 ui.heading("Debug Panel");
+                ui.label("  toggle panel with <`>");
 
                 ui.label("Light options");
                 ui.add(

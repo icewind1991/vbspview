@@ -204,6 +204,7 @@ impl Control for DemoCamera {
 
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("Playback");
+        ui.label("  toggle playback with <p>");
         self.last_ui_tick = self.ui_tick;
         self.last_speed = self.speed;
         let range = self.tick_range();
