@@ -176,7 +176,7 @@ impl Control for DemoCamera {
 
         if self.playing | self.force_update {
             let tick = self.demo_tick(accumulated_time);
-            self.ui_tick = tick as u32 + self.demo.start_tick;
+            self.ui_tick = tick as u32;
             if self.demo.positions.len() as f64 <= tick {
                 self.playing = false;
                 self.start_tick = self.demo_tick(accumulated_time);
@@ -213,9 +213,8 @@ impl Control for DemoCamera {
     }
 
     fn post_ui(&mut self, time: f64) {
-        let tick = self.ui_tick.saturating_sub(self.demo.start_tick);
         if self.ui_tick != self.last_ui_tick || self.speed != self.last_speed {
-            self.set_tick(tick, time);
+            self.set_tick(self.ui_tick, time);
         }
     }
 }
