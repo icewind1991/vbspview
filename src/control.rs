@@ -150,7 +150,6 @@ impl Control for DemoCamera {
                     if text == "p" {
                         change = true;
                         self.playing = !self.playing;
-                        dbg!(self.playing);
                         if self.playing {
                             self.playback_start_time = accumulated_time;
                         } else {

@@ -27,7 +27,7 @@ struct Args {
     /// Path of the demo or map file
     path: String,
     /// Name of the player to follow
-    player: String,
+    player: Option<String>,
 }
 
 #[derive(Debug, Error)]
@@ -79,7 +79,7 @@ fn main() -> Result<(), Error> {
     })?;
 
     if args.path.ends_with(".dem") {
-        let demo = DemoInfo::new(args.path, &args.player)?;
+        let demo = DemoInfo::new(args.path, &args.player.unwrap_or_default())?;
         let mut loader = Loader::new()?;
         let map = loader.load(&format!("maps/{}.bsp", demo.map))?;
 

@@ -1,10 +1,12 @@
-use crate::bsp::map_coords;
+use crate::bsp::{map_coords, UNIT_SCALE};
 use crate::Error;
 use std::fs;
 use std::path::Path;
 use tf_demo_parser::demo::data::UserInfo;
+use tf_demo_parser::demo::header::Header;
 use tf_demo_parser::demo::message::packetentities::EntityId;
 use tf_demo_parser::demo::message::Message;
+use tf_demo_parser::demo::packet::message::MessagePacketMeta;
 use tf_demo_parser::demo::packet::stringtable::StringTableEntry;
 use tf_demo_parser::demo::parser::MessageHandler;
 use tf_demo_parser::demo::sendprop::SendPropIdentifier;
@@ -39,11 +41,14 @@ impl DemoInfo {
 struct PovAnalyzer {
     last_position: Vector,
     last_angles: [f32; 2],
+    view_offset: f32,
     positions: Vec<(Vec3, [f32; 2])>,
     name: String,
     player: Option<EntityId>,
     start_tick: u32,
     last_tick: u32,
+    pov_name: String,
+    is_pov: bool,
 }
 
 impl MessageHandler for PovAnalyzer {
@@ -51,6 +56,23 @@ impl MessageHandler for PovAnalyzer {
 
     fn does_handle(message_type: MessageType) -> bool {
         matches!(message_type, MessageType::PacketEntities)
+    }
+
+    fn handle_header(&mut self, header: &Header) {
+        self.pov_name = header.nick.clone();
+        if self.name.is_empty() {
+            self.name = self.pov_name.clone();
+        }
+    }
+
+    fn handle_packet_meta(&mut self, meta: &MessagePacketMeta) {
+        if self.is_pov {
+            self.last_angles = [
+                meta.view_angles.local_angles.1.x,
+                meta.view_angles.local_angles.1.y,
+            ];
+            self.last_position = meta.view_angles.origin.1
+        }
     }
 
     fn handle_message(&mut self, message: &Message, tick: u32) {
@@ -70,6 +92,8 @@ impl MessageHandler for PovAnalyzer {
             SendPropIdentifier::new("DT_TFLocalPlayerExclusive", "m_angEyeAngles[0]");
         const NON_LOCAL_PITCH_ANGLES: SendPropIdentifier =
             SendPropIdentifier::new("DT_TFNonLocalPlayerExclusive", "m_angEyeAngles[0]");
+        const VIEW_OFFSET: SendPropIdentifier =
+            SendPropIdentifier::new("DT_LocalPlayerExclusive", "m_vecViewOffset[2]");
 
         if let (Message::PacketEntities(message), Some(player_id)) = (message, self.player) {
             if self.start_tick == 0 {
@@ -94,6 +118,10 @@ impl MessageHandler for PovAnalyzer {
                             LOCAL_PITCH_ANGLES | NON_LOCAL_PITCH_ANGLES => {
                                 self.last_angles[0] = f32::try_from(&prop.value).unwrap_or_default()
                             }
+                            VIEW_OFFSET => {
+                                self.view_offset =
+                                    f32::try_from(&prop.value).unwrap_or_default() * UNIT_SCALE;
+                            }
                             _ => {}
                         }
                     }
@@ -104,8 +132,10 @@ impl MessageHandler for PovAnalyzer {
         if tick > self.last_tick {
             self.last_tick = tick;
             let pos = map_coords(self.last_position);
-            self.positions
-                .push((vec3(pos[0], pos[1], pos[2]), self.last_angles));
+            self.positions.push((
+                vec3(pos[0], pos[1] + self.view_offset, pos[2]),
+                self.last_angles,
+            ));
         }
     }
 
@@ -132,11 +162,14 @@ impl PovAnalyzer {
         PovAnalyzer {
             last_position: Vector::default(),
             last_angles: [0.0, 0.0],
+            view_offset: 0.0,
             positions: vec![],
             name,
             player: None,
             start_tick: 0,
             last_tick: 0,
+            pov_name: String::new(),
+            is_pov: false,
         }
     }
 
@@ -148,6 +181,7 @@ impl PovAnalyzer {
                 .to_ascii_lowercase()
                 .contains(&self.name)
             {
+                self.is_pov = user_info.player_info.name == self.pov_name;
                 self.player = Some(user_info.entity_id);
             }
         }

@@ -29,7 +29,7 @@ pub fn map_coords<C: Into<[f32; 3]>>(vec: C) -> [f32; 3] {
 }
 
 // 1 hammer unit is ~1.905cm
-const UNIT_SCALE: f32 = 1.0 / (1.905 * 100.0);
+pub const UNIT_SCALE: f32 = 1.0 / (1.905 * 100.0);
 
 fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CPUMesh {
     let positions: Vec<f32> = model
