@@ -4,10 +4,12 @@ mod demo;
 mod loader;
 mod renderer;
 mod ui;
+
 use clap::Parser;
+use std::fs;
 
 use crate::bsp::load_map;
-use crate::control::DemoCamera;
+use crate::control::{Control, DemoCamera};
 use crate::demo::DemoInfo;
 use crate::renderer::Renderer;
 use crate::ui::DebugUI;
@@ -76,13 +78,28 @@ fn main() -> Result<(), Error> {
         ..Default::default()
     })?;
 
-    let demo = DemoInfo::new(args.path, &args.player)?;
-    let mut loader = Loader::new()?;
-    let map = loader.load(&format!("maps/{}.bsp", demo.map))?;
+    if args.path.ends_with(".dem") {
+        let demo = DemoInfo::new(args.path, &args.player)?;
+        let mut loader = Loader::new()?;
+        let map = loader.load(&format!("maps/{}.bsp", demo.map))?;
 
-    let mut renderer = Renderer::new(&window, DemoCamera::new(demo))?;
+        let meshes = load_map(&map, &mut loader)?;
+        play(window, DemoCamera::new(demo), meshes)
+    } else {
+        let mut loader = Loader::new()?;
+        let map = fs::read(args.path)?;
 
-    let meshes = load_map(&map, &mut loader)?;
+        let meshes = load_map(&map, &mut loader)?;
+        play(window, FirstPerson::new(0.1), meshes)
+    }
+}
+
+fn play<C: Control + 'static>(
+    window: Window,
+    control: C,
+    meshes: Vec<CPUMesh>,
+) -> Result<(), Error> {
+    let mut renderer = Renderer::new(&window, control)?;
     let material = PhysicalMaterial {
         albedo: Color {
             r: 128,

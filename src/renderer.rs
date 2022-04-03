@@ -1,5 +1,5 @@
 use crate::control::{Control, DebugToggle};
-use crate::{DebugUI, FirstPerson};
+use crate::DebugUI;
 use three_d::*;
 
 pub struct Renderer<C: Control> {
