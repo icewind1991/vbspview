@@ -1,3 +1,4 @@
+use crate::Control;
 use three_d::egui::*;
 use three_d::{Camera, Context, DebugType, FrameInput, ThreeDResult, GUI};
 
@@ -24,10 +25,11 @@ impl DebugUI {
         })
     }
 
-    pub fn update(
+    pub fn update<C: Control>(
         &mut self,
         frame_input: &mut FrameInput,
         camera: &Camera,
+        control: &mut C,
     ) -> ThreeDResult<(bool, u32)> {
         let mut panel_width = 0;
         let change = self.ui.update(frame_input, |gui_context| {
@@ -60,9 +62,12 @@ impl DebugUI {
                 ui.add(Label::new(format!("\tx: {}", camera.position().x)));
                 ui.add(Label::new(format!("\ty: {}", camera.position().y)));
                 ui.add(Label::new(format!("\tz: {}", camera.position().z)));
+
+                control.ui(ui);
             });
             panel_width = gui_context.used_size().x as u32;
         })?;
+        control.post_ui(frame_input.accumulated_time);
         Ok((change, panel_width))
     }
 

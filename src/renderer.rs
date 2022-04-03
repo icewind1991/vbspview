@@ -55,7 +55,9 @@ impl<C: Control> Renderer<C> {
     }
 
     pub fn render(&mut self, mut frame_input: FrameInput) -> ThreeDResult<FrameOutput> {
-        let (ui_change, _panel_width) = self.gui.update(&mut frame_input, &self.camera)?;
+        let (ui_change, _panel_width) =
+            self.gui
+                .update(&mut frame_input, &self.camera, &mut self.control)?;
         let change = frame_input.first_frame || ui_change;
         if change {
             if self.gui.shadows_enabled {

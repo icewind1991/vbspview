@@ -1,4 +1,6 @@
 use crate::DemoInfo;
+use std::ops::RangeInclusive;
+use three_d::egui::{Slider, Ui};
 use three_d::*;
 use tracing::{debug, info};
 
@@ -10,6 +12,10 @@ pub trait Control {
         elapsed_time: f64,
         accumulated_time: f64,
     ) -> ThreeDResult<bool>;
+
+    fn ui(&mut self, _ui: &mut Ui) {}
+
+    fn post_ui(&mut self, _time: f64) {}
 }
 
 pub struct FirstPerson {
@@ -133,6 +139,9 @@ pub struct DemoCamera {
     playing: bool,
     start_tick: f64,
     playback_start_time: f64,
+    ui_tick: u32,
+    last_ui_tick: u32,
+    force_update: bool,
 }
 
 impl Control for DemoCamera {
@@ -153,7 +162,7 @@ impl Control for DemoCamera {
                         if self.playing {
                             self.playback_start_time = accumulated_time;
                         } else {
-                            self.start_tick = self.tick(accumulated_time);
+                            self.start_tick = self.demo_tick(accumulated_time);
                         }
                     }
                 }
@@ -161,11 +170,12 @@ impl Control for DemoCamera {
             };
         }
 
-        if self.playing {
-            let tick = self.tick(accumulated_time);
+        if self.playing | self.force_update {
+            let tick = self.demo_tick(accumulated_time);
+            self.ui_tick = tick as u32 + self.demo.start_tick;
             if self.demo.positions.len() as f64 <= tick {
                 self.playing = false;
-                self.start_tick = self.tick(accumulated_time);
+                self.start_tick = self.demo_tick(accumulated_time);
                 change = true;
                 info!(
                     tick = tick,
@@ -183,9 +193,26 @@ impl Control for DemoCamera {
                 let (position, [pitch, yaw]) = self.demo.positions[tick as usize];
                 self.apply_view(_camera, position, yaw, pitch);
             }
+            self.force_update = false;
         }
 
         Ok(self.playing | change)
+    }
+
+    fn ui(&mut self, ui: &mut Ui) {
+        ui.label("Playback");
+        self.last_ui_tick = self.ui_tick;
+        let range = self.tick_range();
+        ui.add(Slider::new(&mut self.ui_tick, range).text("tick"));
+    }
+
+    fn post_ui(&mut self, time: f64) {
+        if self.ui_tick != self.last_ui_tick {
+            let tick = self.ui_tick.saturating_sub(self.demo.start_tick);
+            self.start_tick = tick as f64;
+            self.playback_start_time = time;
+            self.force_update = true;
+        }
     }
 }
 
@@ -196,10 +223,13 @@ impl DemoCamera {
             playing: false,
             start_tick: 0.0,
             playback_start_time: 0.0,
+            ui_tick: 0,
+            last_ui_tick: 0,
+            force_update: true,
         }
     }
 
-    fn tick(&self, time: f64) -> f64 {
+    fn demo_tick(&self, time: f64) -> f64 {
         let playback_time = (time - self.playback_start_time) / 1000.0;
         self.start_tick + playback_time / self.demo.time_per_tick
     }
@@ -211,6 +241,10 @@ impl DemoCamera {
         camera
             .set_view(position, target, vec3(0.0, 1.0, 0.0))
             .unwrap();
+    }
+
+    fn tick_range(&self) -> RangeInclusive<u32> {
+        self.demo.start_tick..=self.demo.positions.len() as u32 + self.demo.start_tick
     }
 }
 
