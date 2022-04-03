@@ -181,7 +181,7 @@ impl Control for DemoCamera {
                     "playing tick"
                 );
                 // todo: interpolate
-                let (position, yaw, pitch) = self.demo.positions[tick as usize];
+                let (position, [pitch, yaw]) = self.demo.positions[tick as usize];
                 self.apply_view(_camera, position, yaw, pitch);
             }
         }
