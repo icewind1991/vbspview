@@ -141,6 +141,8 @@ pub struct DemoCamera {
     playback_start_time: f64,
     ui_tick: u32,
     last_ui_tick: u32,
+    speed: f64,
+    last_speed: f64,
     force_update: bool,
 }
 
@@ -202,16 +204,16 @@ impl Control for DemoCamera {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("Playback");
         self.last_ui_tick = self.ui_tick;
+        self.last_speed = self.speed;
         let range = self.tick_range();
         ui.add(Slider::new(&mut self.ui_tick, range).text("tick"));
+        ui.add(Slider::new(&mut self.speed, 0.1..=10.0).text("speed"));
     }
 
     fn post_ui(&mut self, time: f64) {
-        if self.ui_tick != self.last_ui_tick {
-            let tick = self.ui_tick.saturating_sub(self.demo.start_tick);
-            self.start_tick = tick as f64;
-            self.playback_start_time = time;
-            self.force_update = true;
+        let tick = self.ui_tick.saturating_sub(self.demo.start_tick);
+        if self.ui_tick != self.last_ui_tick || self.speed != self.last_speed {
+            self.set_tick(tick, time);
         }
     }
 }
@@ -224,6 +226,8 @@ impl DemoCamera {
             start_tick: 0.0,
             playback_start_time: 0.0,
             ui_tick: 0,
+            speed: 1.0,
+            last_speed: 1.0,
             last_ui_tick: 0,
             force_update: true,
         }
@@ -231,7 +235,7 @@ impl DemoCamera {
 
     fn demo_tick(&self, time: f64) -> f64 {
         let playback_time = (time - self.playback_start_time) / 1000.0;
-        self.start_tick + playback_time / self.demo.time_per_tick
+        self.start_tick + playback_time / self.demo.time_per_tick * self.speed
     }
 
     fn apply_view(&self, camera: &mut Camera, position: Vec3, yaw: f32, pitch: f32) {
@@ -245,6 +249,12 @@ impl DemoCamera {
 
     fn tick_range(&self) -> RangeInclusive<u32> {
         self.demo.start_tick..=self.demo.positions.len() as u32 + self.demo.start_tick
+    }
+
+    fn set_tick(&mut self, tick: u32, time: f64) {
+        self.start_tick = tick as f64;
+        self.playback_start_time = time;
+        self.force_update = true;
     }
 }
 
