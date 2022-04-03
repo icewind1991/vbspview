@@ -16,7 +16,7 @@ use three_d::{vec3, Vec3};
 
 pub struct DemoInfo {
     pub map: String,
-    pub positions: Vec<(Vec3, [f32; 2])>,
+    pub positions: Vec<(u32, Vec3, [f32; 2])>,
     pub start_tick: u32,
     pub time_per_tick: f64,
 }
@@ -42,7 +42,7 @@ struct PovAnalyzer {
     last_position: Vector,
     last_angles: [f32; 2],
     view_offset: f32,
-    positions: Vec<(Vec3, [f32; 2])>,
+    positions: Vec<(u32, Vec3, [f32; 2])>,
     name: String,
     player: Option<EntityId>,
     start_tick: u32,
@@ -52,7 +52,7 @@ struct PovAnalyzer {
 }
 
 impl MessageHandler for PovAnalyzer {
-    type Output = (Vec<(Vec3, [f32; 2])>, u32, f32);
+    type Output = (Vec<(u32, Vec3, [f32; 2])>, u32, f32);
 
     fn does_handle(message_type: MessageType) -> bool {
         matches!(message_type, MessageType::PacketEntities)
@@ -65,31 +65,23 @@ impl MessageHandler for PovAnalyzer {
         }
     }
 
-    fn handle_packet_meta(&mut self, meta: &MessagePacketMeta) {
-        if self.is_pov {
-            self.last_angles = [
-                meta.view_angles.local_angles.1.x,
-                meta.view_angles.local_angles.1.y,
-            ];
-            self.last_position = meta.view_angles.origin.1
-        }
-    }
-
     fn handle_message(&mut self, message: &Message, tick: u32) {
-        const LOCAL_ORIGIN: SendPropIdentifier =
-            SendPropIdentifier::new("DT_TFLocalPlayerExclusive", "m_vecOrigin");
+        if tick != self.last_tick {
+            self.last_tick = tick;
+            let pos = map_coords(self.last_position);
+            self.positions.push((
+                tick,
+                vec3(pos[0], pos[1] + self.view_offset, pos[2]),
+                self.last_angles,
+            ));
+        }
+
         const NON_LOCAL_ORIGIN: SendPropIdentifier =
             SendPropIdentifier::new("DT_TFNonLocalPlayerExclusive", "m_vecOrigin");
-        const LOCAL_ORIGIN_Z: SendPropIdentifier =
-            SendPropIdentifier::new("DT_TFLocalPlayerExclusive", "m_vecOrigin[2]");
         const NON_LOCAL_ORIGIN_Z: SendPropIdentifier =
             SendPropIdentifier::new("DT_TFNonLocalPlayerExclusive", "m_vecOrigin[2]");
-        const LOCAL_YAW_ANGLES: SendPropIdentifier =
-            SendPropIdentifier::new("DT_TFLocalPlayerExclusive", "m_angEyeAngles[1]");
         const NON_LOCAL_YAW_ANGLES: SendPropIdentifier =
             SendPropIdentifier::new("DT_TFNonLocalPlayerExclusive", "m_angEyeAngles[1]");
-        const LOCAL_PITCH_ANGLES: SendPropIdentifier =
-            SendPropIdentifier::new("DT_TFLocalPlayerExclusive", "m_angEyeAngles[0]");
         const NON_LOCAL_PITCH_ANGLES: SendPropIdentifier =
             SendPropIdentifier::new("DT_TFNonLocalPlayerExclusive", "m_angEyeAngles[0]");
         const VIEW_OFFSET: SendPropIdentifier =
@@ -103,19 +95,19 @@ impl MessageHandler for PovAnalyzer {
                 if entity.entity_index == player_id {
                     for prop in &entity.props {
                         match prop.identifier {
-                            LOCAL_ORIGIN | NON_LOCAL_ORIGIN => {
+                            NON_LOCAL_ORIGIN => {
                                 let pos_xy = VectorXY::try_from(&prop.value).unwrap_or_default();
                                 self.last_position.x = pos_xy.x;
                                 self.last_position.y = pos_xy.y;
                             }
-                            LOCAL_ORIGIN_Z | NON_LOCAL_ORIGIN_Z => {
+                            NON_LOCAL_ORIGIN_Z => {
                                 self.last_position.z =
                                     f32::try_from(&prop.value).unwrap_or_default()
                             }
-                            LOCAL_YAW_ANGLES | NON_LOCAL_YAW_ANGLES => {
+                            NON_LOCAL_YAW_ANGLES => {
                                 self.last_angles[1] = f32::try_from(&prop.value).unwrap_or_default()
                             }
-                            LOCAL_PITCH_ANGLES | NON_LOCAL_PITCH_ANGLES => {
+                            NON_LOCAL_PITCH_ANGLES => {
                                 self.last_angles[0] = f32::try_from(&prop.value).unwrap_or_default()
                             }
                             VIEW_OFFSET => {
@@ -128,15 +120,6 @@ impl MessageHandler for PovAnalyzer {
                 }
             }
         }
-
-        if tick > self.last_tick {
-            self.last_tick = tick;
-            let pos = map_coords(self.last_position);
-            self.positions.push((
-                vec3(pos[0], pos[1] + self.view_offset, pos[2]),
-                self.last_angles,
-            ));
-        }
     }
 
     fn handle_string_entry(&mut self, table: &str, _index: usize, entry: &StringTableEntry) {
@@ -145,6 +128,16 @@ impl MessageHandler for PovAnalyzer {
                 entry.text.as_ref().map(|s| s.as_ref()),
                 entry.extra_data.as_ref().map(|data| data.data.clone()),
             );
+        }
+    }
+
+    fn handle_packet_meta(&mut self, meta: &MessagePacketMeta) {
+        if self.is_pov {
+            self.last_angles = [
+                meta.view_angles.local_angles.1.x,
+                meta.view_angles.local_angles.1.y,
+            ];
+            self.last_position = meta.view_angles.origin.1
         }
     }
 

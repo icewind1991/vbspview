@@ -1,4 +1,5 @@
 use crate::DemoInfo;
+use splines::{Interpolate, Spline};
 use std::ops::RangeInclusive;
 use three_d::egui::{Slider, Ui};
 use three_d::*;
@@ -136,6 +137,7 @@ impl DebugToggle {
 
 pub struct DemoCamera {
     demo: DemoInfo,
+    spline: Spline<f32, TickData>,
     playing: bool,
     start_tick: f64,
     playback_start_time: f64,
@@ -149,7 +151,7 @@ pub struct DemoCamera {
 impl Control for DemoCamera {
     fn handle(
         &mut self,
-        _camera: &mut Camera,
+        camera: &mut Camera,
         events: &mut [Event],
         _elapsed_time: f64,
         accumulated_time: f64,
@@ -191,9 +193,8 @@ impl Control for DemoCamera {
                     play_time = accumulated_time - self.playback_start_time,
                     "playing tick"
                 );
-                // todo: interpolate
-                let (position, [pitch, yaw]) = self.demo.positions[tick as usize];
-                self.apply_view(_camera, position, yaw, pitch);
+                let data = self.get_tick(tick);
+                self.apply_view(camera, data.position, data.angles[1], data.angles[0]);
             }
             self.force_update = false;
         }
@@ -220,8 +221,18 @@ impl Control for DemoCamera {
 
 impl DemoCamera {
     pub fn new(demo: DemoInfo) -> Self {
+        let spline = Spline::from_iter(demo.positions.iter().cloned().map(
+            |(tick, position, angles)| {
+                splines::Key::new(
+                    (tick - demo.start_tick) as f32,
+                    TickData { position, angles },
+                    splines::Interpolation::Cosine,
+                )
+            },
+        ));
         DemoCamera {
             demo,
+            spline,
             playing: false,
             start_tick: 0.0,
             playback_start_time: 0.0,
@@ -255,6 +266,10 @@ impl DemoCamera {
         self.start_tick = tick as f64;
         self.playback_start_time = time;
         self.force_update = true;
+    }
+
+    fn get_tick(&self, tick: f64) -> TickData {
+        self.spline.sample(tick as f32).unwrap()
     }
 }
 
@@ -304,4 +319,108 @@ fn apply_camera_action(
         CameraAction::None => {}
     }
     Ok(control_type != CameraAction::None)
+}
+
+#[derive(Copy, Clone, Debug)]
+struct TickData {
+    position: Vec3,
+    angles: [f32; 2],
+}
+
+impl Interpolate<f32> for TickData {
+    fn step(t: f32, threshold: f32, a: Self, b: Self) -> Self {
+        TickData {
+            position: Vec3::step(t, threshold, a.position, b.position),
+            angles: [
+                f32::step(t, threshold, a.angles[0], b.angles[0]),
+                f32::step(t, threshold, a.angles[1], b.angles[1]),
+            ],
+        }
+    }
+
+    fn lerp(t: f32, a: Self, b: Self) -> Self {
+        TickData {
+            position: <Vec3 as Interpolate<f32>>::lerp(t, a.position, b.position),
+            angles: [
+                f32::lerp(t, a.angles[0], b.angles[0]),
+                f32::lerp(t, a.angles[1], b.angles[1]),
+            ],
+        }
+    }
+
+    fn cosine(t: f32, a: Self, b: Self) -> Self {
+        TickData {
+            position: Vec3::cosine(t, a.position, b.position),
+            angles: [
+                f32::cosine(t, a.angles[0], b.angles[0]),
+                f32::cosine(t, a.angles[1], b.angles[1]),
+            ],
+        }
+    }
+
+    fn cubic_hermite(
+        t: f32,
+        x: (f32, Self),
+        a: (f32, Self),
+        b: (f32, Self),
+        y: (f32, Self),
+    ) -> Self {
+        TickData {
+            position: Vec3::cubic_hermite(
+                t,
+                (x.0, x.1.position),
+                (a.0, a.1.position),
+                (b.0, b.1.position),
+                (y.0, y.1.position),
+            ),
+            angles: [
+                f32::cubic_hermite(
+                    t,
+                    (x.0, x.1.angles[0]),
+                    (a.0, a.1.angles[0]),
+                    (b.0, b.1.angles[0]),
+                    (y.0, y.1.angles[0]),
+                ),
+                f32::cubic_hermite(
+                    t,
+                    (x.0, x.1.angles[1]),
+                    (a.0, a.1.angles[1]),
+                    (b.0, b.1.angles[1]),
+                    (y.0, y.1.angles[1]),
+                ),
+            ],
+        }
+    }
+
+    fn quadratic_bezier(t: f32, a: Self, u: Self, b: Self) -> Self {
+        TickData {
+            position: Vec3::quadratic_bezier(t, a.position, u.position, b.position),
+            angles: [
+                f32::quadratic_bezier(t, a.angles[0], u.angles[0], b.angles[0]),
+                f32::quadratic_bezier(t, a.angles[1], u.angles[1], b.angles[1]),
+            ],
+        }
+    }
+
+    fn cubic_bezier(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
+        TickData {
+            position: Vec3::cubic_bezier(t, a.position, u.position, v.position, b.position),
+            angles: [
+                f32::cubic_bezier(t, a.angles[0], u.angles[0], v.angles[0], b.angles[0]),
+                f32::cubic_bezier(t, a.angles[1], u.angles[1], v.angles[1], b.angles[1]),
+            ],
+        }
+    }
+
+    fn cubic_bezier_mirrored(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
+        TickData {
+            position: Vec3::cubic_bezier_mirrored(
+                t, a.position, u.position, v.position, b.position,
+            ),
+            angles: [
+                f32::cubic_bezier_mirrored(t, a.angles[0], u.angles[0], v.angles[0], b.angles[0]),
+                f32::cubic_bezier_mirrored(t, a.angles[1], u.angles[1], v.angles[1], b.angles[1]),
+            ],
+        }
+    }
 }

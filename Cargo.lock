@@ -2482,6 +2482,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "splines"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85d3c90d443c10f66d69fc45269f3bf1d3b0171c239751fe6129b7d79a82c535"
+dependencies = [
+ "cgmath",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3024,6 +3033,7 @@ dependencies = [
  "delaunator",
  "itertools",
  "miette",
+ "splines",
  "steamid-ng",
  "steamlocate",
  "tf-demo-parser",
