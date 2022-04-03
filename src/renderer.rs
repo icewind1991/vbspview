@@ -1,18 +1,20 @@
+use crate::control::{Control, DebugToggle};
 use crate::{DebugUI, FirstPerson};
 use three_d::*;
 
-pub struct Renderer {
+pub struct Renderer<C: Control> {
     gui: DebugUI,
     pub models: Vec<Model<PhysicalMaterial>>,
     lights: Lights,
     pub context: Context,
     pipeline: ForwardPipeline,
-    control: FirstPerson,
+    control: C,
+    debug_toggle: DebugToggle,
     pub camera: Camera,
 }
 
-impl Renderer {
-    pub fn new(window: &Window) -> ThreeDResult<Self> {
+impl<C: Control> Renderer<C> {
+    pub fn new(window: &Window, control: C) -> ThreeDResult<Self> {
         let context = window.gl().unwrap();
         let forward_pipeline = ForwardPipeline::new(&context).unwrap();
         let camera = Camera::new_perspective(
@@ -38,7 +40,7 @@ impl Renderer {
             ],
             ..Default::default()
         };
-        let control = FirstPerson::new(0.1);
+        // let control = FirstPerson::new(0.1);
 
         Ok(Self {
             models: Vec::new(),
@@ -47,6 +49,7 @@ impl Renderer {
             lights,
             context,
             control,
+            debug_toggle: DebugToggle::new(),
             camera,
         })
     }
@@ -86,7 +89,20 @@ impl Renderer {
         };
         self.camera.set_viewport(viewport).unwrap();
         self.control
-            .handle_events(&mut self.camera, &mut frame_input.events)
+            .handle(
+                &mut self.camera,
+                &mut frame_input.events,
+                frame_input.elapsed_time,
+                frame_input.accumulated_time,
+            )
+            .unwrap();
+        self.debug_toggle
+            .handle(
+                &mut self.camera,
+                &mut frame_input.events,
+                frame_input.elapsed_time,
+                frame_input.accumulated_time,
+            )
             .unwrap();
 
         // Light pass
@@ -149,7 +165,7 @@ impl Renderer {
                         .render_pass(&self.camera, &self.models, &self.lights)?
                 }
             };
-            if self.control.debug {
+            if self.debug_toggle.enabled {
                 self.gui.render()?;
             }
             Ok(())

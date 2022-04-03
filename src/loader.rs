@@ -64,15 +64,17 @@ impl Loader {
     #[tracing::instrument]
     pub fn load(&self, name: &str) -> Result<Vec<u8>, Error> {
         debug!("loading {}", name);
-        let path = self.tf_dir.join(name);
-        if path.exists() {
-            debug!("found in tf2 dir");
-            return Ok(fs::read(path)?);
-        }
-        let path = self.download.join(name);
-        if path.exists() {
-            debug!("found in download dir");
-            return Ok(fs::read(path)?);
+        if name.ends_with("bsp") {
+            let path = self.tf_dir.join(name);
+            if path.exists() {
+                debug!("found in tf2 dir");
+                return Ok(fs::read(path)?);
+            }
+            let path = self.download.join(name);
+            if path.exists() {
+                debug!("found in download dir");
+                return Ok(fs::read(path)?);
+            }
         }
         if let Some(pack) = &self.pack {
             if let Some(data) = pack.get(name)? {

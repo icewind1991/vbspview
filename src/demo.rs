@@ -11,6 +11,7 @@ pub struct DemoInfo {
     pub map: String,
     pub positions: Vec<(Vec3, f32, f32)>,
     pub start_tick: u32,
+    pub time_per_tick: f64,
 }
 
 impl DemoInfo {
@@ -69,6 +70,7 @@ impl DemoInfo {
             map: header.map,
             positions,
             start_tick,
+            time_per_tick: ticker.parser_state().demo_meta.interval_per_tick as f64,
         })
     }
 }
