@@ -1,5 +1,5 @@
 [package]
-name = "vbspview"
+name = "demview"
 version = "0.1.0"
 edition = "2021"
 authors = ["Robin Appelman <robin@icewind.nl>"]
@@ -19,13 +19,10 @@ tracing = "0.1.29"
 tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
 tracing-tree = "0.2.0"
 cgmath = "0.18.0"
-tf-demo-parser = { version = "0.4.0", path = "../demostf/tf-demo-parser" }
+tf-demo-parser = { version = "0.4.0", git = "https://github.com/demostf/parser" }
 steamid-ng = "1.0.0"
 clap = { version = "3.1.8", features = ["derive"] }
 splines = { version = "4.1.0", features = ["cgmath"] }
 
 [profile.dev.package."*"]
 opt-level = 2
-
-[profile.release]
-debug = true

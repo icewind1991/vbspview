@@ -61,7 +61,7 @@ impl MessageHandler for PovAnalyzer {
     fn handle_header(&mut self, header: &Header) {
         self.pov_name = header.nick.clone();
         if self.name.is_empty() {
-            self.name = self.pov_name.clone();
+            self.name = self.pov_name.to_ascii_lowercase();
         }
     }
 

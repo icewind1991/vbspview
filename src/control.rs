@@ -269,7 +269,7 @@ impl DemoCamera {
     }
 
     fn get_tick(&self, tick: f64) -> TickData {
-        self.spline.sample(tick as f32).unwrap()
+        self.spline.clamped_sample(tick as f32).unwrap()
     }
 }
 
