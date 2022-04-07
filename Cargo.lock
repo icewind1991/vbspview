@@ -2705,7 +2705,6 @@ checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
 [[package]]
 name = "tf-demo-parser"
 version = "0.4.0"
-source = "git+https://github.com/demostf/parser#3f693e96ae5754be7bf61f953774a4932aa585a4"
 dependencies = [
  "bitbuffer",
  "enumflags2",
