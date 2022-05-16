@@ -161,15 +161,15 @@ impl MessageHandler for PovAnalyzer {
             if self.is_pov {
                 self.positions.pitch.push(Key::new(
                     tick as f32,
-                    meta.view_angles.local_angles.1.y,
+                    meta.view_angles[0].local_angles.y,
                     Interpolation::CatmullRom,
                 ));
                 self.positions.yaw.push(Key::new(
                     tick as f32,
-                    meta.view_angles.local_angles.1.x,
+                    meta.view_angles[0].local_angles.x,
                     Interpolation::CatmullRom,
                 ));
-                let pos = map_coords(meta.view_angles.origin.1);
+                let pos = map_coords(meta.view_angles[0].origin);
                 self.positions.positions.push(Key::new(
                     tick as f32,
                     vec3(pos[0], pos[1] + self.view_offset, pos[2]),
