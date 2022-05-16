@@ -4,6 +4,7 @@ mod demo;
 mod loader;
 mod renderer;
 mod ui;
+mod wrapping;
 
 use clap::Parser;
 use std::fs;

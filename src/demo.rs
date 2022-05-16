@@ -1,4 +1,5 @@
 use crate::bsp::{map_coords, UNIT_SCALE};
+use crate::wrapping::Wrapping;
 use crate::Error;
 use splines::{Interpolation, Key};
 use std::fs;
@@ -44,8 +45,8 @@ impl DemoInfo {
 #[derive(Default)]
 pub struct Positions {
     pub positions: Vec<Key<f32, Vec3>>,
-    pub pitch: Vec<Key<f32, f32>>,
-    pub yaw: Vec<Key<f32, f32>>,
+    pub pitch: Vec<Key<f32, Wrapping<-180, 180>>>,
+    pub yaw: Vec<Key<f32, Wrapping<-180, 180>>>,
 }
 
 struct PovAnalyzer {
@@ -113,14 +114,14 @@ impl MessageHandler for PovAnalyzer {
                                 NON_LOCAL_PITCH_ANGLES => {
                                     self.positions.pitch.push(Key::new(
                                         tick as f32,
-                                        f32::try_from(&prop.value).unwrap_or_default(),
+                                        Wrapping(f32::try_from(&prop.value).unwrap_or_default()),
                                         Interpolation::Linear,
                                     ));
                                 }
                                 NON_LOCAL_YAW_ANGLES => {
                                     self.positions.yaw.push(Key::new(
                                         tick as f32,
-                                        f32::try_from(&prop.value).unwrap_or_default(),
+                                        Wrapping(f32::try_from(&prop.value).unwrap_or_default()),
                                         Interpolation::Linear,
                                     ));
                                 }
@@ -161,13 +162,13 @@ impl MessageHandler for PovAnalyzer {
             if self.is_pov {
                 self.positions.pitch.push(Key::new(
                     tick as f32,
-                    meta.view_angles[0].local_angles.y,
-                    Interpolation::CatmullRom,
+                    Wrapping(meta.view_angles[0].local_angles.y),
+                    Interpolation::Linear,
                 ));
                 self.positions.yaw.push(Key::new(
                     tick as f32,
-                    meta.view_angles[0].local_angles.x,
-                    Interpolation::CatmullRom,
+                    Wrapping(meta.view_angles[0].local_angles.x),
+                    Interpolation::Linear,
                 ));
                 let pos = map_coords(meta.view_angles[0].origin);
                 self.positions.positions.push(Key::new(

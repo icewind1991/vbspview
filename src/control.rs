@@ -1,3 +1,4 @@
+use crate::wrapping::Wrapping;
 use crate::DemoInfo;
 use splines::Spline;
 use std::ops::RangeInclusive;
@@ -138,8 +139,8 @@ impl DebugToggle {
 pub struct DemoCamera {
     demo: DemoInfo,
     positions: Spline<f32, Vec3>,
-    pitch: Spline<f32, f32>,
-    yaw: Spline<f32, f32>,
+    pitch: Spline<f32, Wrapping<-180, 180>>,
+    yaw: Spline<f32, Wrapping<-180, 180>>,
     playing: bool,
     start_tick: f64,
     playback_start_time: f64,
@@ -269,8 +270,8 @@ impl DemoCamera {
                 .clamped_sample(tick as f32)
                 .unwrap_or(vec3(0.0, 0.0, 0.0)),
             angles: [
-                self.pitch.clamped_sample(tick as f32).unwrap_or_default(),
-                self.yaw.clamped_sample(tick as f32).unwrap_or_default(),
+                self.pitch.clamped_sample(tick as f32).unwrap_or_default().0,
+                self.yaw.clamped_sample(tick as f32).unwrap_or_default().0,
             ],
         }
     }
