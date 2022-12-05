@@ -4,3 +4,5 @@
 perf.data*
 flamegraph.svg
 *.dem
+.direnv
+result
