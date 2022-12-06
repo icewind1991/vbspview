@@ -1,86 +1,78 @@
 use crate::control::{Control, DebugToggle};
+use crate::ui::DebugType;
 use crate::DebugUI;
 use three_d::*;
 
 pub struct Renderer<C: Control> {
     gui: DebugUI,
     pub models: Vec<Model<PhysicalMaterial>>,
-    lights: Lights,
+    ambient_lights: Vec<AmbientLight>,
+    directional_lights: Vec<DirectionalLight>,
     pub context: Context,
-    pipeline: ForwardPipeline,
     control: C,
     debug_toggle: DebugToggle,
     pub camera: Camera,
 }
 
 impl<C: Control> Renderer<C> {
-    pub fn new(window: &Window, control: C) -> ThreeDResult<Self> {
-        let context = window.gl().unwrap();
-        let forward_pipeline = ForwardPipeline::new(&context).unwrap();
+    pub fn new(window: &Window, control: C) -> Self {
+        let context = window.gl();
         let camera = Camera::new_perspective(
-            &context,
-            window.viewport().unwrap(),
+            window.viewport(),
             vec3(9.0, 4.0, 5.0),
             vec3(0.0, 0.0, 0.0),
             vec3(0.0, 1.0, 0.0),
             degrees(60.0),
             0.1,
             30.0,
-        )?;
+        );
 
-        let lights = Lights {
-            ambient: Some(AmbientLight {
-                color: Color::WHITE,
-                intensity: 0.2,
-                ..Default::default()
-            }),
-            directional: vec![
-                DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, -1.0, 0.0))?,
-                DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, 1.0, 0.0))?,
-            ],
+        let ambient_lights = vec![AmbientLight {
+            color: Color::WHITE,
+            intensity: 0.2,
             ..Default::default()
-        };
+        }];
+        let directional_lights = vec![
+            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, -1.0, 0.0)),
+            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, 1.0, 0.0)),
+        ];
         // let control = FirstPerson::new(0.1);
 
-        Ok(Self {
+        Self {
             models: Vec::new(),
-            gui: DebugUI::new(&context)?,
-            pipeline: forward_pipeline,
-            lights,
+            gui: DebugUI::new(&context),
+            ambient_lights,
+            directional_lights,
             context,
             control,
             debug_toggle: DebugToggle::new(),
             camera,
-        })
+        }
     }
 
-    pub fn render(&mut self, mut frame_input: FrameInput) -> ThreeDResult<FrameOutput> {
+    pub fn render(&mut self, mut frame_input: FrameInput) -> FrameOutput {
         let (ui_change, _panel_width) =
             self.gui
-                .update(&mut frame_input, &self.camera, &mut self.control)?;
+                .update(&mut frame_input, &self.camera, &mut self.control);
         let change = frame_input.first_frame || ui_change;
         if change {
             if self.gui.shadows_enabled {
-                self.lights.directional[0]
-                    .generate_shadow_map(4.0, 1024, 1024, &self.models)
-                    .unwrap();
-                self.lights.directional[1]
-                    .generate_shadow_map(4.0, 1024, 1024, &self.models)
-                    .unwrap();
+                self.directional_lights[0]
+                    .generate_shadow_map(1024, self.models.iter().flat_map(|model| model.iter()));
+                self.directional_lights[1]
+                    .generate_shadow_map(1024, self.models.iter().flat_map(|model| model.iter()));
             } else {
-                self.lights.directional[0].clear_shadow_map();
-                self.lights.directional[1].clear_shadow_map();
+                self.directional_lights[0].clear_shadow_map();
+                self.directional_lights[1].clear_shadow_map();
             }
-            self.lights.directional[0].set_intensity(self.gui.directional_intensity);
-            self.lights.directional[1].set_intensity(self.gui.directional_intensity);
-            self.lights.ambient.as_mut().unwrap().intensity = self.gui.ambient_intensity;
-            self.camera
-                .set_perspective_projection(
-                    degrees(self.gui.fov),
-                    self.camera.z_near(),
-                    self.camera.z_far(),
-                )
-                .unwrap();
+            self.directional_lights[0].intensity = self.gui.directional_intensity;
+            self.directional_lights[1].intensity = self.gui.directional_intensity;
+            self.ambient_lights[0].intensity = self.gui.ambient_intensity;
+            self.camera.set_perspective_projection(
+                degrees(self.gui.fov),
+                self.camera.z_near(),
+                self.camera.z_far(),
+            );
         }
 
         let viewport = Viewport {
@@ -89,89 +81,74 @@ impl<C: Control> Renderer<C> {
             width: frame_input.viewport.width,
             height: frame_input.viewport.height,
         };
-        self.camera.set_viewport(viewport).unwrap();
-        self.control
-            .handle(
-                &mut self.camera,
-                &mut frame_input.events,
-                frame_input.elapsed_time,
-                frame_input.accumulated_time,
-            )
-            .unwrap();
-        self.debug_toggle
-            .handle(
-                &mut self.camera,
-                &mut frame_input.events,
-                frame_input.elapsed_time,
-                frame_input.accumulated_time,
-            )
-            .unwrap();
+        self.camera.set_viewport(viewport);
+        self.control.handle(
+            &mut self.camera,
+            &mut frame_input.events,
+            frame_input.elapsed_time,
+            frame_input.accumulated_time,
+        );
+        self.debug_toggle.handle(
+            &mut self.camera,
+            &mut frame_input.events,
+            frame_input.elapsed_time,
+            frame_input.accumulated_time,
+        );
+
+        let lights = &[
+            &self.ambient_lights[0] as &dyn Light,
+            &self.directional_lights[0],
+            &self.directional_lights[1],
+        ];
 
         // Light pass
-        Screen::write(&self.context, ClearState::default(), || {
-            match self.gui.debug_type {
-                DebugType::NORMAL => {
-                    for model in &self.models {
-                        model.render_with_material(
-                            &NormalMaterial::from_physical_material(&model.material),
-                            &self.camera,
-                            &self.lights,
-                        )?;
-                    }
-                }
-                DebugType::DEPTH => {
-                    let depth_material = DepthMaterial {
-                        max_distance: Some(self.gui.depth_max),
-                        ..DepthMaterial::default()
-                    };
-                    for model in &self.models {
-                        model.render_with_material(&depth_material, &self.camera, &self.lights)?;
-                    }
-                }
-                DebugType::ORM => {
-                    for model in &self.models {
-                        model.render_with_material(
-                            &ORMMaterial::from_physical_material(&model.material),
-                            &self.camera,
-                            &self.lights,
-                        )?;
-                    }
-                }
-                DebugType::POSITION => {
-                    for model in &self.models {
-                        let position_material = PositionMaterial::default();
-                        model.render_with_material(
-                            &position_material,
-                            &self.camera,
-                            &self.lights,
-                        )?;
-                    }
-                }
-                DebugType::UV => {
-                    for model in &self.models {
-                        let uv_material = UVMaterial::default();
-                        model.render_with_material(&uv_material, &self.camera, &self.lights)?;
-                    }
-                }
-                DebugType::COLOR => {
-                    for model in &self.models {
-                        model.render_with_material(
-                            &ColorMaterial::from_physical_material(&model.material),
-                            &self.camera,
-                            &self.lights,
-                        )?;
-                    }
-                }
-                DebugType::NONE => {
-                    self.pipeline
-                        .render_pass(&self.camera, &self.models, &self.lights)?
-                }
-            };
-            if self.debug_toggle.enabled {
-                self.gui.render()?;
+        let target = frame_input.screen();
+        target.clear(ClearState::default());
+
+        let geometries = self
+            .models
+            .iter()
+            .flat_map(|model| model.iter())
+            .map(|gm| &gm.geometry);
+
+        match self.gui.debug_type {
+            DebugType::NORMAL => target.render_with_material(
+                &NormalMaterial::default(),
+                &self.camera,
+                geometries,
+                lights,
+            ),
+            DebugType::DEPTH => {
+                let mut depth_material = DepthMaterial::default();
+                depth_material.max_distance = Some(self.gui.depth_max);
+                target.render_with_material(&depth_material, &self.camera, geometries, lights)
             }
-            Ok(())
-        })?;
-        Ok(FrameOutput::default())
+            DebugType::ORM => target.render_with_material(
+                &ORMMaterial::default(),
+                &self.camera,
+                geometries,
+                lights,
+            ),
+            DebugType::POSITION => {
+                let position_material = PositionMaterial::default();
+                target.render_with_material(&position_material, &self.camera, geometries, lights)
+            }
+            DebugType::COLOR => target.render_with_material(
+                &ColorMaterial::default(),
+                &self.camera,
+                geometries,
+                lights,
+            ),
+            DebugType::NONE => target.render(
+                &self.camera,
+                self.models.iter().flat_map(|model| model.iter()),
+                lights,
+            ),
+        };
+
+        if self.debug_toggle.enabled {
+            target.write(|| self.gui.render());
+        }
+        FrameOutput::default()
     }
 }

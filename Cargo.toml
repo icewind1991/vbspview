@@ -6,23 +6,23 @@ authors = ["Robin Appelman <robin@icewind.nl>"]
 license = "MIT"
 
 [dependencies]
-three-d = "0.10.2"
+three-d = { version = "0.14.0", features = ["egui-gui"] }
 vbsp = { version = "0.1.0", git = "https://github.com/icewind1991/vbsp" }
-miette = { version = "4.2.1", features = ["fancy"] }
-thiserror = "1.0.30"
+miette = { version = "5.5.0", features = ["fancy"] }
+thiserror = "1.0.37"
 delaunator = "1.0.1"
-itertools = "0.10.3"
-steamlocate = "1.0.1"
+itertools = "0.10.5"
+steamlocate = "1.1.0"
 vpk = { version = "0.1.4", git = "https://github.com/icewind1991/vpk-rs", branch = "perf" }
 vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
-tracing = "0.1.29"
-tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
-tracing-tree = "0.2.0"
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+tracing-tree = "0.2.2"
 cgmath = "0.18.0"
-tf-demo-parser = { version = "0.4.0", path = "../demostf/tf-demo-parser" }
+tf-demo-parser = { version = "0.4.0", git = "https://github.com/demostf/parser" }
 steamid-ng = "1.0.0"
-clap = { version = "3.1.8", features = ["derive"] }
-splines = { version = "4.1.0", features = ["cgmath"] }
+clap = { version = "4.0.29", features = ["derive"] }
+splines = { version = "4.1.1", features = ["cgmath"] }
 
 [profile.dev.package."*"]
 opt-level = 2

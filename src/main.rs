@@ -47,6 +47,10 @@ pub enum Error {
     Demo(#[from] tf_demo_parser::ParseError),
     #[error("{0}")]
     Other(&'static str),
+    #[error(transparent)]
+    Window(#[from] WindowError),
+    #[error(transparent)]
+    Render(#[from] RendererError),
 }
 
 impl From<&'static str> for Error {
@@ -98,10 +102,10 @@ fn main() -> Result<(), Error> {
 fn play<C: Control + 'static>(
     window: Window,
     control: C,
-    meshes: Vec<CPUMesh>,
+    meshes: Vec<CpuMesh>,
 ) -> Result<(), Error> {
-    let mut renderer = Renderer::new(&window, control)?;
-    let material = PhysicalMaterial {
+    let mut renderer = Renderer::new(&window, control);
+    let material = CpuMaterial {
         albedo: Color {
             r: 128,
             g: 128,
@@ -113,10 +117,14 @@ fn play<C: Control + 'static>(
 
     renderer.models = meshes
         .into_iter()
-        .map(|mesh| Model::new_with_material(&renderer.context, &mesh, material.clone()))
+        .map(|mesh| CpuModel {
+            geometries: vec![mesh],
+            materials: vec![material.clone()],
+        })
+        .map(|model| Model::new(&renderer.context, &model))
         .collect::<Result<_, _>>()?;
 
-    window.render_loop(move |frame_input| renderer.render(frame_input).unwrap())?;
+    window.render_loop(move |frame_input| renderer.render(frame_input));
 
     Ok(())
 }

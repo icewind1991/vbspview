@@ -4,7 +4,7 @@ use crate::Error;
 use splines::{Interpolation, Key};
 use std::fs;
 use std::path::Path;
-use tf_demo_parser::demo::data::UserInfo;
+use tf_demo_parser::demo::data::{DemoTick, UserInfo};
 use tf_demo_parser::demo::header::Header;
 use tf_demo_parser::demo::message::packetentities::EntityId;
 use tf_demo_parser::demo::message::Message;
@@ -20,7 +20,7 @@ pub struct DemoInfo {
     pub ticks: u32,
     pub map: String,
     pub positions: Positions,
-    pub start_tick: u32,
+    pub start_tick: DemoTick,
     pub time_per_tick: f64,
 }
 
@@ -55,15 +55,15 @@ struct PovAnalyzer {
     positions: Positions,
     name: String,
     player: Option<EntityId>,
-    start_tick: u32,
+    start_tick: DemoTick,
     pov_name: String,
     is_pov: bool,
-    last_tick: u32,
-    last_pov_tick: u32,
+    last_tick: DemoTick,
+    last_pov_tick: DemoTick,
 }
 
 impl MessageHandler for PovAnalyzer {
-    type Output = (Positions, u32, f32);
+    type Output = (Positions, DemoTick, f32);
 
     fn does_handle(message_type: MessageType) -> bool {
         matches!(message_type, MessageType::PacketEntities)
@@ -76,7 +76,7 @@ impl MessageHandler for PovAnalyzer {
         }
     }
 
-    fn handle_message(&mut self, message: &Message, tick: u32) {
+    fn handle_message(&mut self, message: &Message, tick: DemoTick, _state: &ParserState) {
         if tick > self.last_tick {
             self.last_tick = tick;
             const NON_LOCAL_ORIGIN: SendPropIdentifier =
@@ -113,14 +113,14 @@ impl MessageHandler for PovAnalyzer {
                                 }
                                 NON_LOCAL_PITCH_ANGLES => {
                                     self.positions.pitch.push(Key::new(
-                                        tick as f32,
+                                        u32::from(tick) as f32,
                                         Wrapping(f32::try_from(&prop.value).unwrap_or_default()),
                                         Interpolation::Linear,
                                     ));
                                 }
                                 NON_LOCAL_YAW_ANGLES => {
                                     self.positions.yaw.push(Key::new(
-                                        tick as f32,
+                                        u32::from(tick) as f32,
                                         Wrapping(f32::try_from(&prop.value).unwrap_or_default()),
                                         Interpolation::Linear,
                                     ));
@@ -137,9 +137,9 @@ impl MessageHandler for PovAnalyzer {
             }
 
             if (self.last_position != old_pos || old_offset != self.view_offset) && !self.is_pov {
-                let pos = map_coords(self.last_position);
+                let pos = map_coords(<[f32; 3]>::from(self.last_position));
                 self.positions.positions.push(Key::new(
-                    tick as f32,
+                    u32::from(tick) as f32,
                     vec3(pos[0], pos[1] + self.view_offset, pos[2]),
                     Interpolation::CatmullRom,
                 ));
@@ -147,32 +147,44 @@ impl MessageHandler for PovAnalyzer {
         }
     }
 
-    fn handle_string_entry(&mut self, table: &str, _index: usize, entry: &StringTableEntry) {
+    fn handle_string_entry(
+        &mut self,
+        table: &str,
+        index: usize,
+        entry: &StringTableEntry,
+        _state: &ParserState,
+    ) {
         if table == "userinfo" && self.player.is_none() {
             let _ = self.parse_user_info(
+                index as u16,
                 entry.text.as_ref().map(|s| s.as_ref()),
                 entry.extra_data.as_ref().map(|data| data.data.clone()),
             );
         }
     }
 
-    fn handle_packet_meta(&mut self, tick: u32, meta: &MessagePacketMeta) {
+    fn handle_packet_meta(
+        &mut self,
+        tick: DemoTick,
+        meta: &MessagePacketMeta,
+        _state: &ParserState,
+    ) {
         if tick != self.last_pov_tick {
             self.last_pov_tick = tick;
             if self.is_pov {
                 self.positions.pitch.push(Key::new(
-                    tick as f32,
+                    u32::from(tick) as f32,
                     Wrapping(meta.view_angles[0].local_angles.y),
                     Interpolation::Linear,
                 ));
                 self.positions.yaw.push(Key::new(
-                    tick as f32,
+                    u32::from(tick) as f32,
                     Wrapping(meta.view_angles[0].local_angles.x),
                     Interpolation::Linear,
                 ));
-                let pos = map_coords(meta.view_angles[0].origin);
+                let pos = map_coords(<[f32; 3]>::from(meta.view_angles[0].origin));
                 self.positions.positions.push(Key::new(
-                    tick as f32,
+                    u32::from(tick) as f32,
                     vec3(pos[0], pos[1] + self.view_offset, pos[2]),
                     Interpolation::CatmullRom,
                 ));
@@ -197,16 +209,21 @@ impl PovAnalyzer {
             positions: Positions::default(),
             name,
             player: None,
-            start_tick: 0,
+            start_tick: DemoTick::default(),
             pov_name: String::new(),
             is_pov: false,
-            last_tick: 0,
-            last_pov_tick: 0,
+            last_tick: DemoTick::default(),
+            last_pov_tick: DemoTick::default(),
         }
     }
 
-    fn parse_user_info(&mut self, text: Option<&str>, data: Option<Stream>) -> ReadResult<()> {
-        if let Some(user_info) = UserInfo::parse_from_string_table(text, data)? {
+    fn parse_user_info(
+        &mut self,
+        index: u16,
+        text: Option<&str>,
+        data: Option<Stream>,
+    ) -> ReadResult<()> {
+        if let Some(user_info) = UserInfo::parse_from_string_table(index, text, data)? {
             if user_info
                 .player_info
                 .name

@@ -16,7 +16,29 @@
     in rec {
       # `nix develop`
       devShell = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [rustc cargo bacon cargo-edit cargo-outdated clippy cargo-audit cargo-msrv];
+        nativeBuildInputs = with pkgs; [
+          rustc
+          cargo
+          bacon
+          cargo-edit
+          cargo-outdated
+          clippy
+          cargo-audit
+          cargo-msrv
+          freetype
+          pkgconfig
+          cmake
+          fontconfig
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXrandr
+          xorg.libXi
+          glew-egl
+          egl-wayland
+          libGL
+        ];
+
+        LD_LIBRARY_PATH = with pkgs; "/run/opengl-driver/lib/:${lib.makeLibraryPath ([libGL libGLU])}";
       };
     });
 }

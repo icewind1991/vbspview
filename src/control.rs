@@ -13,7 +13,7 @@ pub trait Control {
         events: &mut [Event],
         elapsed_time: f64,
         accumulated_time: f64,
-    ) -> ThreeDResult<bool>;
+    ) -> bool;
 
     fn ui(&mut self, _ui: &mut Ui) {}
 
@@ -33,8 +33,8 @@ impl Control for FirstPerson {
         events: &mut [Event],
         _elapsed_time: f64,
         _accumulated_time: f64,
-    ) -> ThreeDResult<bool> {
-        let change = self.control.handle_events(camera, events)?;
+    ) -> bool {
+        let change = self.control.handle_events(camera, events);
         for event in events.iter_mut() {
             match event {
                 Event::KeyPress { kind, .. } => {
@@ -48,19 +48,19 @@ impl Control for FirstPerson {
         }
 
         if self.keys[0] {
-            apply_camera_action(camera, CameraAction::Forward { speed: self.speed }, 1.0)?;
+            apply_camera_action(camera, CameraAction::Forward { speed: self.speed }, 1.0);
         }
         if self.keys[1] {
-            apply_camera_action(camera, CameraAction::Forward { speed: self.speed }, -1.0)?;
+            apply_camera_action(camera, CameraAction::Forward { speed: self.speed }, -1.0);
         }
         if self.keys[2] {
-            apply_camera_action(camera, CameraAction::Left { speed: self.speed }, 1.0)?;
+            apply_camera_action(camera, CameraAction::Left { speed: self.speed }, 1.0);
         }
         if self.keys[3] {
-            apply_camera_action(camera, CameraAction::Left { speed: self.speed }, -1.0)?;
+            apply_camera_action(camera, CameraAction::Left { speed: self.speed }, -1.0);
         }
 
-        Ok(self.keys.iter().fold(change, |change, key| change && *key))
+        self.keys.iter().fold(change, |change, key| change && *key)
     }
 }
 
@@ -113,20 +113,20 @@ impl Control for DebugToggle {
         events: &mut [Event],
         _elapsed_time: f64,
         _accumulated_time: f64,
-    ) -> ThreeDResult<bool> {
+    ) -> bool {
         for event in events.iter_mut() {
             match event {
                 Event::Text(text) => {
                     if text == "`" {
                         self.enabled = !self.enabled;
-                        return Ok(true);
+                        return true;
                     }
                 }
                 _ => {}
             };
         }
 
-        Ok(false)
+        false
     }
 }
 
@@ -158,7 +158,7 @@ impl Control for DemoCamera {
         events: &mut [Event],
         _elapsed_time: f64,
         accumulated_time: f64,
-    ) -> ThreeDResult<bool> {
+    ) -> bool {
         let mut change = false;
         for event in events.iter_mut() {
             match event {
@@ -198,7 +198,7 @@ impl Control for DemoCamera {
             self.force_update = false;
         }
 
-        Ok(self.playing | change)
+        self.playing | change
     }
 
     fn ui(&mut self, ui: &mut Ui) {
@@ -248,13 +248,11 @@ impl DemoCamera {
         let forward = vec4(0.0, 0.0, 1.0, 1.0);
         let angle_transform = Mat4::from_angle_y(degrees(yaw)) * Mat4::from_angle_x(degrees(pitch));
         let target = position + (angle_transform * forward).truncate();
-        camera
-            .set_view(position, target, vec3(0.0, 1.0, 0.0))
-            .unwrap();
+        camera.set_view(position, target, vec3(0.0, 1.0, 0.0))
     }
 
     fn tick_range(&self) -> RangeInclusive<u32> {
-        self.demo.start_tick..=self.demo.ticks + self.demo.start_tick
+        u32::from(self.demo.start_tick)..=self.demo.ticks + u32::from(self.demo.start_tick)
     }
 
     fn set_tick(&mut self, tick: u32, time: f64) {
@@ -277,40 +275,36 @@ impl DemoCamera {
     }
 }
 
-fn apply_camera_action(
-    camera: &mut Camera,
-    control_type: CameraAction,
-    x: f64,
-) -> ThreeDResult<bool> {
+fn apply_camera_action(camera: &mut Camera, control_type: CameraAction, x: f64) -> bool {
     match control_type {
         CameraAction::Pitch { speed } => {
-            camera.pitch(radians(speed * x as f32))?;
+            camera.pitch(radians(speed * x as f32));
         }
         CameraAction::OrbitUp { speed, target } => {
-            camera.rotate_around_with_fixed_up(&target, 0.0, speed * x as f32)?;
+            camera.rotate_around_with_fixed_up(&target, 0.0, speed * x as f32);
         }
         CameraAction::Yaw { speed } => {
-            camera.yaw(radians(speed * x as f32))?;
+            camera.yaw(radians(speed * x as f32));
         }
         CameraAction::OrbitLeft { speed, target } => {
-            camera.rotate_around_with_fixed_up(&target, speed * x as f32, 0.0)?;
+            camera.rotate_around_with_fixed_up(&target, speed * x as f32, 0.0);
         }
         CameraAction::Roll { speed } => {
-            camera.roll(radians(speed * x as f32))?;
+            camera.roll(radians(speed * x as f32));
         }
         CameraAction::Left { speed } => {
             let change = -camera.right_direction() * x as f32 * speed;
-            camera.translate(&change)?;
+            camera.translate(&change);
         }
         CameraAction::Up { speed } => {
             let right = camera.right_direction();
             let up = right.cross(camera.view_direction());
             let change = up * x as f32 * speed;
-            camera.translate(&change)?;
+            camera.translate(&change);
         }
         CameraAction::Forward { speed } => {
             let change = camera.view_direction() * speed * x as f32;
-            camera.translate(&change)?;
+            camera.translate(&change);
         }
         CameraAction::Zoom {
             target,
@@ -318,11 +312,11 @@ fn apply_camera_action(
             min,
             max,
         } => {
-            camera.zoom_towards(&target, speed * x as f32, min, max)?;
+            camera.zoom_towards(&target, speed * x as f32, min, max);
         }
         CameraAction::None => {}
     }
-    Ok(control_type != CameraAction::None)
+    control_type != CameraAction::None
 }
 
 #[derive(Copy, Clone, Debug)]
