@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 three-d = { version = "0.14.0", features = ["egui-gui"] }
 vbsp = { version = "0.1.0", git = "https://github.com/icewind1991/vbsp" }
+#vbsp = { version = "0.1.0", path = "../bsp" }
 miette = { version = "5.5.0", features = ["fancy"] }
 thiserror = "1.0.37"
 delaunator = "1.0.1"

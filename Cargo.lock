@@ -2487,7 +2487,7 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 [[package]]
 name = "vbsp"
 version = "0.1.0"
-source = "git+https://github.com/icewind1991/vbsp#c459a8308b94ac232acba3d70a76ac7a79ccbf7b"
+source = "git+https://github.com/icewind1991/vbsp#35ef37995086210fa93228afd5d6639dd57209d7"
 dependencies = [
  "arrayvec 0.7.2",
  "binrw",
@@ -2505,7 +2505,7 @@ dependencies = [
 [[package]]
 name = "vbsp-derive"
 version = "0.1.0"
-source = "git+https://github.com/icewind1991/vbsp#c459a8308b94ac232acba3d70a76ac7a79ccbf7b"
+source = "git+https://github.com/icewind1991/vbsp#35ef37995086210fa93228afd5d6639dd57209d7"
 dependencies = [
  "proc-macro2",
  "quote",
