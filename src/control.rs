@@ -115,15 +115,12 @@ impl Control for DebugToggle {
         _accumulated_time: f64,
     ) -> bool {
         for event in events.iter_mut() {
-            match event {
-                Event::Text(text) => {
-                    if text == "`" {
-                        self.enabled = !self.enabled;
-                        return true;
-                    }
+            if let Event::Text(text) = event {
+                if text == "`" {
+                    self.enabled = !self.enabled;
+                    return true;
                 }
-                _ => {}
-            };
+            }
         }
 
         false
@@ -161,19 +158,16 @@ impl Control for DemoCamera {
     ) -> bool {
         let mut change = false;
         for event in events.iter_mut() {
-            match event {
-                Event::Text(text) => {
-                    if text == "p" {
-                        change = true;
-                        self.playing = !self.playing;
-                        if self.playing {
-                            self.playback_start_time = accumulated_time;
-                        } else {
-                            self.start_tick = self.demo_tick(accumulated_time);
-                        }
+            if let Event::Text(text) = event {
+                if text == "p" {
+                    change = true;
+                    self.playing = !self.playing;
+                    if self.playing {
+                        self.playback_start_time = accumulated_time;
+                    } else {
+                        self.start_tick = self.demo_tick(accumulated_time);
                     }
                 }
-                _ => {}
             };
         }
 

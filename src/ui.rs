@@ -5,12 +5,12 @@ use three_d::{Camera, Context, FrameInput, GUI};
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum DebugType {
-    POSITION,
-    NORMAL,
-    COLOR,
-    DEPTH,
-    ORM,
-    NONE,
+    Position,
+    Normal,
+    Color,
+    Depth,
+    Orm,
+    None,
 }
 
 pub struct DebugUI {
@@ -32,7 +32,7 @@ impl DebugUI {
             ambient_intensity: 0.2,
             depth_max: 30.0,
             fov: 60.0,
-            debug_type: DebugType::NORMAL,
+            debug_type: DebugType::Normal,
         }
     }
 
@@ -65,12 +65,12 @@ impl DebugUI {
                     ui.checkbox(&mut self.shadows_enabled, "Shadows");
 
                     ui.label("Debug options");
-                    ui.radio_value(&mut self.debug_type, DebugType::NONE, "None");
-                    ui.radio_value(&mut self.debug_type, DebugType::POSITION, "Position");
-                    ui.radio_value(&mut self.debug_type, DebugType::NORMAL, "Normal");
-                    ui.radio_value(&mut self.debug_type, DebugType::COLOR, "Color");
-                    ui.radio_value(&mut self.debug_type, DebugType::DEPTH, "Depth");
-                    ui.radio_value(&mut self.debug_type, DebugType::ORM, "ORM");
+                    ui.radio_value(&mut self.debug_type, DebugType::None, "None");
+                    ui.radio_value(&mut self.debug_type, DebugType::Position, "Position");
+                    ui.radio_value(&mut self.debug_type, DebugType::Normal, "Normal");
+                    ui.radio_value(&mut self.debug_type, DebugType::Color, "Color");
+                    ui.radio_value(&mut self.debug_type, DebugType::Depth, "Depth");
+                    ui.radio_value(&mut self.debug_type, DebugType::Orm, "ORM");
 
                     ui.label("View options");
                     ui.add(Slider::new(&mut self.depth_max, 1.0..=30.0).text("Depth max"));
@@ -90,7 +90,7 @@ impl DebugUI {
         (change, panel_width)
     }
 
-    pub fn render(&mut self) -> () {
+    pub fn render(&mut self) {
         self.ui.render()
     }
 }

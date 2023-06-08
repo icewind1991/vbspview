@@ -112,34 +112,36 @@ impl<C: Control> Renderer<C> {
             .map(|gm| &gm.geometry);
 
         match self.gui.debug_type {
-            DebugType::NORMAL => target.render_with_material(
+            DebugType::Normal => target.render_with_material(
                 &NormalMaterial::default(),
                 &self.camera,
                 geometries,
                 lights,
             ),
-            DebugType::DEPTH => {
-                let mut depth_material = DepthMaterial::default();
-                depth_material.max_distance = Some(self.gui.depth_max);
+            DebugType::Depth => {
+                let depth_material = DepthMaterial {
+                    max_distance: Some(self.gui.depth_max),
+                    ..DepthMaterial::default()
+                };
                 target.render_with_material(&depth_material, &self.camera, geometries, lights)
             }
-            DebugType::ORM => target.render_with_material(
+            DebugType::Orm => target.render_with_material(
                 &ORMMaterial::default(),
                 &self.camera,
                 geometries,
                 lights,
             ),
-            DebugType::POSITION => {
+            DebugType::Position => {
                 let position_material = PositionMaterial::default();
                 target.render_with_material(&position_material, &self.camera, geometries, lights)
             }
-            DebugType::COLOR => target.render_with_material(
+            DebugType::Color => target.render_with_material(
                 &ColorMaterial::default(),
                 &self.camera,
                 geometries,
                 lights,
             ),
-            DebugType::NONE => target.render(
+            DebugType::None => target.render(
                 &self.camera,
                 self.models.iter().flat_map(|model| model.iter()),
                 lights,

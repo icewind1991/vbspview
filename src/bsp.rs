@@ -41,7 +41,7 @@ fn model_to_mesh(model: Handle<vbsp::data::Model>) -> CpuMesh {
                 .map(Either::Left)
                 .unwrap_or_else(|| Either::Right(face.triangulate().flatten()))
         })
-        .map(|c| map_coords(c).into())
+        .map(map_coords)
         .collect();
 
     let mut mesh = CpuMesh {
@@ -61,7 +61,7 @@ fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     merge_models(props.map(|prop| {
         let model = load_prop(loader, prop.model())?;
         let transform =
-            Mat4::from_translation(map_coords(prop.origin).into()) * Mat4::from(prop.rotation());
+            Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
         Ok(ModelData { model, transform })
     }))
 }
