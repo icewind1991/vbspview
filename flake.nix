@@ -62,6 +62,7 @@
         default = vbspview;
       };
 
+      inherit targets;
 
       devShells.default = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [
