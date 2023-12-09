@@ -1160,6 +1160,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25db6b064527c5d482d0423354fcd07a89a2dfe07b67892e62411946db7f07b0"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2423,7 +2432,7 @@ dependencies = [
  "enumflags2",
  "err-derive",
  "fnv",
- "itertools",
+ "itertools 0.10.5",
  "main_error",
  "num-traits 0.2.17",
  "num_enum 0.5.11",
@@ -2694,11 +2703,13 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 name = "vbsp"
 version = "0.2.0"
 dependencies = [
+ "ahash 0.8.6",
  "arrayvec 0.7.4",
  "binrw",
  "bitflags 2.4.1",
  "bv",
  "cgmath",
+ "itertools 0.12.0",
  "lzma-rs",
  "num_enum 0.7.1",
  "static_assertions",
@@ -2725,7 +2736,7 @@ dependencies = [
  "cgmath",
  "clap",
  "delaunator",
- "itertools",
+ "itertools 0.10.5",
  "miette",
  "splines",
  "steamid-ng",
@@ -2762,7 +2773,7 @@ dependencies = [
  "bitflags 1.3.2",
  "bytemuck",
  "cgmath",
- "itertools",
+ "itertools 0.10.5",
  "static_assertions",
  "thiserror",
  "tracing",

@@ -88,39 +88,26 @@ fn main() -> Result<(), Error> {
         let mut loader = Loader::new()?;
         let map = loader.load(&format!("maps/{}.bsp", demo.map))?;
 
-        let meshes = load_map(&map, &mut loader)?;
-        play(window, DemoCamera::new(demo), meshes)
+        let models = load_map(&map, &mut loader)?;
+        play(window, DemoCamera::new(demo), models)
     } else {
         let mut loader = Loader::new()?;
         let map = fs::read(args.path)?;
 
-        let meshes = load_map(&map, &mut loader)?;
-        play(window, FirstPerson::new(0.1), meshes)
+        let models = load_map(&map, &mut loader)?;
+        play(window, FirstPerson::new(0.1), models)
     }
 }
 
 fn play<C: Control + 'static>(
     window: Window,
     control: C,
-    meshes: Vec<CpuMesh>,
+    models: Vec<CpuModel>,
 ) -> Result<(), Error> {
     let mut renderer = Renderer::new(&window, control);
-    let material = CpuMaterial {
-        albedo: Color {
-            r: 128,
-            g: 128,
-            b: 128,
-            a: 255,
-        },
-        ..Default::default()
-    };
 
-    renderer.models = meshes
+    renderer.models = models
         .into_iter()
-        .map(|mesh| CpuModel {
-            geometries: vec![mesh],
-            materials: vec![material.clone()],
-        })
         .map(|model| Model::new(&renderer.context, &model))
         .collect::<Result<_, _>>()?;
 

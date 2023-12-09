@@ -32,7 +32,7 @@ impl DebugUI {
             ambient_intensity: 0.2,
             depth_max: 30.0,
             fov: 60.0,
-            debug_type: DebugType::Normal,
+            debug_type: DebugType::None,
         }
     }
 
