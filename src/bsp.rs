@@ -1,7 +1,10 @@
 use crate::{Error, Loader};
 use cgmath::{vec4, Matrix, SquareMatrix};
 use std::collections::HashMap;
-use three_d::{Color, CpuMaterial, CpuMesh, CpuModel, Indices, Mat4, Positions, Vec2, Vec3};
+use three_d::{
+    texture, Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Indices, Mat4, Positions,
+    TextureData, Vec2, Vec3,
+};
 use vbsp::{Bsp, Face, Handle, StaticPropLump};
 use vmdl::mdl::Mdl;
 use vmdl::vtx::Vtx;
@@ -84,14 +87,29 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
         .values()
         .map(|face| {
             let texture = face.first().unwrap().texture();
-            let color = texture.texture().debug_color();
+            let tex_file = format!("materials/{}.vtf", texture.name().to_lowercase());
+            let vtf_data = loader.load(&tex_file).ok();
+            let texture_data = vtf_data.and_then(|mut vtf_data| {
+                let vtf = vtf::from_bytes(&mut vtf_data).ok()?;
+                let image = vtf.highres_image.decode(0).ok()?;
+                Some(CpuTexture {
+                    name: texture.name().into(),
+                    data: TextureData::RgbaU8(
+                        image.into_rgba8().pixels().map(|pixel| pixel.0).collect(),
+                    ),
+                    height: texture.texture_data().height as u32,
+                    width: texture.texture_data().width as u32,
+                    ..CpuTexture::default()
+                })
+            });
+            let color = if texture_data.is_some() {
+                Color::default()
+            } else {
+                Color::new(255, 0, 255, 255)
+            };
             CpuMaterial {
-                albedo: Color {
-                    r: color[0],
-                    g: color[1],
-                    b: color[2],
-                    a: 255,
-                },
+                albedo: color,
+                albedo_texture: texture_data,
                 name: texture.name().into(),
                 ..Default::default()
             }
