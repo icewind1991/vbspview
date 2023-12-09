@@ -2,8 +2,8 @@ use crate::{Error, Loader};
 use cgmath::{vec4, Matrix, SquareMatrix};
 use std::collections::HashMap;
 use three_d::{
-    texture, Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Indices, Mat4, Positions,
-    TextureData, Vec2, Vec3,
+    Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Indices, Mat4, Positions, TextureData, Vec2,
+    Vec3,
 };
 use vbsp::{Bsp, Face, Handle, StaticPropLump};
 use vmdl::mdl::Mdl;
@@ -136,15 +136,18 @@ fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
         ..Default::default()
     };
 
-    let mesh = merge_models(props.map(|prop| {
+    let props = props.map(|prop| {
         let model = load_prop(loader, prop.model())?;
         let transform =
             Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
         Ok(ModelData { model, transform })
-    }))?;
+    });
+    let geometries = props
+        .map(|res| res.map(prop_to_mesh))
+        .collect::<Result<_, Error>>()?;
 
     Ok(CpuModel {
-        geometries: vec![mesh],
+        geometries,
         materials: vec![material],
     })
 }
@@ -163,47 +166,34 @@ struct ModelData {
     transform: Mat4,
 }
 
-fn merge_models<I: Iterator<Item = Result<ModelData, Error>>>(props: I) -> Result<CpuMesh, Error> {
-    let mut positions = Vec::new();
-    let mut normals = Vec::new();
-    let mut indices = Vec::new();
+fn prop_to_mesh(prop: ModelData) -> CpuMesh {
+    let transform = prop.transform;
+    let normal_transform = transform.invert().unwrap().transpose() * -1.0;
+    let model = prop.model;
 
-    for prop in props {
-        let prop = prop?;
-        let transform = prop.transform;
-        let normal_transform = transform.invert().unwrap().transpose() * -1.0;
-        let model = prop.model;
+    let positions = model
+        .vertices()
+        .iter()
+        .map(|v| map_coords(v.position))
+        .map(|v| apply_transform(v, transform))
+        .collect();
+    let normals = model
+        .vertices()
+        .iter()
+        .map(|v| map_coords(v.normal))
+        .map(|v| apply_transform(v, normal_transform))
+        .collect();
+    let indices = model
+        .vertex_strip_indices()
+        .flat_map(|strip| strip.map(|index| index as u32))
+        .collect();
 
-        let offset = positions.len() as u32;
-
-        positions.extend(
-            model
-                .vertices()
-                .iter()
-                .map(|v| map_coords(v.position))
-                .map(|v| apply_transform(v, transform)),
-        );
-        normals.extend(
-            model
-                .vertices()
-                .iter()
-                .map(|v| map_coords(v.normal))
-                .map(|v| apply_transform(v, normal_transform)),
-        );
-        indices.extend(
-            model
-                .vertex_strip_indices()
-                .flat_map(|strip| strip.map(|index| index as u32))
-                .map(|index| index + offset),
-        );
-    }
-
-    Ok(CpuMesh {
+    CpuMesh {
         positions: Positions::F32(positions),
         normals: Some(normals),
         indices: Indices::U32(indices),
         ..Default::default()
-    })
+    }
 }
 
 fn load_world(data: &[u8], loader: &mut Loader) -> Result<(CpuModel, Bsp), Error> {
