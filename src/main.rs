@@ -2,6 +2,7 @@ mod bsp;
 mod control;
 mod demo;
 mod loader;
+mod prop;
 mod renderer;
 mod ui;
 mod wrapping;
