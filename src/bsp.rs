@@ -2,21 +2,19 @@ use crate::{Error, Loader};
 use cgmath::{vec4, Matrix, SquareMatrix};
 use std::collections::HashMap;
 use three_d::{
-    Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Indices, Mat4, Positions, TextureData, Vec2,
-    Vec3,
+    Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Mat4, Positions, TextureData, Vec2, Vec3,
 };
 use tracing::error;
 use vbsp::{Bsp, Face, Handle, StaticPropLump};
-use vmdl::mdl::Mdl;
+use vmdl::mdl::{Mdl, TextureInfo};
 use vmdl::vtx::Vtx;
 use vmdl::vvd::Vvd;
 use vtf::vtf::VTF;
 
 pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CpuModel>, Error> {
-    let (cpu_model, bsp) = load_world(data, loader)?;
-    let mut props = load_props(loader, bsp.static_props())?;
-    props.insert(0, cpu_model);
-    Ok(props)
+    let (world, bsp) = load_world(data, loader)?;
+    let props = load_props(loader, bsp.static_props())?;
+    Ok(vec![world, props])
 }
 
 fn apply_transform<C: Into<Vec3>>(coord: C, transform: Mat4) -> Vec3 {
@@ -128,21 +126,35 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
 fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     loader: &Loader,
     props: I,
-) -> Result<Vec<CpuModel>, Error> {
-    let props = props.map(|prop| {
-        let model = load_prop(loader, prop.model())?;
-        let transform =
-            Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
-        Ok(ModelData {
-            model,
-            transform,
-            skin: prop.skin,
+) -> Result<CpuModel, Error> {
+    let props: Vec<ModelData> = props
+        .map(|prop| {
+            let model = load_prop(loader, prop.model())?;
+            let transform =
+                Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
+            Ok::<_, Error>(ModelData {
+                model,
+                transform,
+                skin: prop.skin,
+            })
         })
-    });
+        .collect::<Result<_, _>>()?;
 
-    props
-        .map(|res| res.map(|prop| prop_to_model(prop, loader)))
-        .collect::<Result<_, Error>>()
+    let geometries = props.iter().flat_map(prop_to_meshes).collect();
+
+    let textures: HashMap<_, _> = props
+        .iter()
+        .flat_map(|prop| prop.model.textures())
+        .map(|tex| (tex.name.as_str(), tex))
+        .collect();
+    let materials: Vec<_> = textures
+        .into_values()
+        .map(|tex| prop_texture_to_material(tex, loader))
+        .collect();
+    Ok(CpuModel {
+        geometries,
+        materials,
+    })
 }
 
 #[tracing::instrument(skip(loader))]
@@ -160,10 +172,10 @@ struct ModelData {
     skin: i32,
 }
 
-fn prop_to_model(prop: ModelData, loader: &Loader) -> CpuModel {
+fn prop_to_meshes(prop: &ModelData) -> impl Iterator<Item = CpuMesh> + '_ {
     let transform = prop.transform;
     let normal_transform = transform.invert().unwrap().transpose() * -1.0;
-    let model = prop.model;
+    let model = &prop.model;
 
     let skin = match model.skin_tables().nth(prop.skin as usize) {
         Some(skin) => skin,
@@ -173,70 +185,54 @@ fn prop_to_model(prop: ModelData, loader: &Loader) -> CpuModel {
         }
     };
 
-    let geometries = model
-        .meshes()
-        .map(|mesh| {
-            let texture = skin
-                .texture(mesh.material_index())
-                .expect("texture out of bounds");
+    model.meshes().map(move |mesh| {
+        let texture = skin
+            .texture(mesh.material_index())
+            .expect("texture out of bounds");
 
-            let positions: Vec<Vec3> = mesh
-                .vertices()
-                .map(|vertex| map_coords(vertex.position))
-                .map(|v| apply_transform(v, transform))
-                .collect();
-            let normals: Vec<Vec3> = mesh
-                .vertices()
-                .map(|vertex| map_coords(vertex.normal))
-                .map(|v| apply_transform(v, normal_transform))
-                .collect();
-            let uvs: Vec<Vec2> = mesh
-                .vertices()
-                .map(|vertex| Vec2 {
-                    x: vertex.texture_coordinates[0],
-                    y: vertex.texture_coordinates[1],
-                })
-                .collect();
+        let positions: Vec<Vec3> = mesh
+            .vertices()
+            .map(|vertex| map_coords(vertex.position))
+            .map(|v| apply_transform(v, transform))
+            .collect();
+        let normals: Vec<Vec3> = mesh
+            .vertices()
+            .map(|vertex| map_coords(vertex.normal))
+            .map(|v| apply_transform(v, normal_transform))
+            .collect();
+        let uvs: Vec<Vec2> = mesh
+            .vertices()
+            .map(|vertex| vertex.texture_coordinates.into())
+            .collect();
 
-            CpuMesh {
-                positions: Positions::F32(positions),
-                normals: Some(normals),
-                uvs: Some(uvs),
-                material_name: Some(texture.into()),
-                ..Default::default()
-            }
-        })
-        .collect();
+        CpuMesh {
+            positions: Positions::F32(positions),
+            normals: Some(normals),
+            uvs: Some(uvs),
+            material_name: Some(texture.into()),
+            ..Default::default()
+        }
+    })
+}
 
-    let materials = model
-        .textures()
-        .iter()
-        .map(|texture| {
-            let dirs = model.texture_directories();
-            match load_texture(&texture.name, dirs, loader) {
-                Ok(texture) => CpuMaterial {
-                    albedo: Color::default(),
-                    name: texture.name.clone(),
-                    albedo_texture: Some(texture),
-                    ..Default::default()
-                },
-                Err(e) => CpuMaterial {
-                    albedo: Color {
-                        r: 255,
-                        g: 0,
-                        b: 255,
-                        a: 255,
-                    },
-                    name: texture.name.clone(),
-                    ..Default::default()
-                },
-            }
-        })
-        .collect();
-
-    CpuModel {
-        materials,
-        geometries,
+fn prop_texture_to_material(texture: &TextureInfo, loader: &Loader) -> CpuMaterial {
+    match load_texture(&texture.name, &texture.search_paths, loader) {
+        Ok(texture) => CpuMaterial {
+            albedo: Color::default(),
+            name: texture.name.clone(),
+            albedo_texture: Some(texture),
+            ..Default::default()
+        },
+        Err(_) => CpuMaterial {
+            albedo: Color {
+                r: 255,
+                g: 0,
+                b: 255,
+                a: 255,
+            },
+            name: texture.name.clone(),
+            ..Default::default()
+        },
     }
 }
 
