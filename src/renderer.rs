@@ -135,6 +135,10 @@ impl<C: Control> Renderer<C> {
                 let position_material = PositionMaterial::default();
                 target.render_with_material(&position_material, &self.camera, geometries, lights)
             }
+            DebugType::Uv => {
+                let uv_material = UVMaterial::default();
+                target.render_with_material(&uv_material, &self.camera, geometries, lights)
+            }
             DebugType::Color => target.render_with_material(
                 &ColorMaterial::default(),
                 &self.camera,

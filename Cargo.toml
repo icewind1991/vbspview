@@ -24,7 +24,7 @@ tf-demo-parser = { version = "0.4.0", git = "https://github.com/demostf/parser" 
 steamid-ng = "1.0.0"
 clap = { version = "4.0.29", features = ["derive"] }
 splines = { version = "4.1.1", features = ["cgmath"] }
-vtf = { version = "0.1.5", git = "https://github.com/roman901/vtf-rs", rev = "a346cb6d85c2766fe7e30b0a70b6f38e67c3a6c9" }
+vtf = { version = "0.1.5", git = "https://github.com/roman901/vtf-rs", rev = "55670df" }
 
 [profile.dev.package."*"]
 opt-level = 2

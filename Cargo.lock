@@ -1337,9 +1337,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.150"
+version = "0.2.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89d92a4743f9a61002fae18374ed11e7973f530cb3a3255fb354818118b2203c"
+checksum = "302d7ab3130588088d277783b1e2d2e10c9e9e4a16dd9050e6ec93fb3e7048f4"
 
 [[package]]
 name = "libloading"
@@ -1531,12 +1531,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "minimal-lexical"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
-
-[[package]]
 name = "miniz_oxide"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1671,16 +1665,6 @@ name = "nom"
 version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5b8c256fd9471521bcb84c3cdba98921497f1a331cbc15b8030fc63b82050ce"
-
-[[package]]
-name = "nom"
-version = "7.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
-dependencies = [
- "memchr",
- "minimal-lexical",
-]
 
 [[package]]
 name = "nu-ansi-term"
@@ -2528,7 +2512,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "533127ad49314bfe71c3d3fd36b3ebac3d24f40618092e70e1cfe8362c7fac79"
 dependencies = [
- "nom 1.2.4",
+ "nom",
 ]
 
 [[package]]
@@ -3030,7 +3014,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vmdl"
 version = "0.1.0"
-source = "git+https://github.com/icewind1991/vmdl#377e1773c087463f06c71e0674c1a5dcb9a60f54"
+source = "git+https://github.com/icewind1991/vmdl#70a6adebdd8f6b7d60625c2539aa3e68403526fb"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 1.3.2",
@@ -3055,7 +3039,7 @@ dependencies = [
 [[package]]
 name = "vtf"
 version = "0.1.5"
-source = "git+https://github.com/roman901/vtf-rs?rev=a346cb6d85c2766fe7e30b0a70b6f38e67c3a6c9#a346cb6d85c2766fe7e30b0a70b6f38e67c3a6c9"
+source = "git+https://github.com/roman901/vtf-rs?rev=55670df#55670df9acd8463d9e8a78d1217d1570385f3582"
 dependencies = [
  "byteorder 1.5.0",
  "err-derive 0.2.4",
@@ -3495,12 +3479,9 @@ dependencies = [
 
 [[package]]
 name = "xcursor"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "463705a63313cd4301184381c5e8042f0a7e9b4bb63653f216311d4ae74690b7"
-dependencies = [
- "nom 7.1.3",
-]
+checksum = "6a0ccd7b4a5345edfcd0c3535718a4e9ff7798ffc536bb5b5a0e26ff84732911"
 
 [[package]]
 name = "xml-rs"

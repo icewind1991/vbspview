@@ -9,11 +9,13 @@ use vbsp::{Bsp, Face, Handle, StaticPropLump};
 use vmdl::mdl::Mdl;
 use vmdl::vtx::Vtx;
 use vmdl::vvd::Vvd;
+use vtf::vtf::VTF;
 
 pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CpuModel>, Error> {
     let (cpu_model, bsp) = load_world(data, loader)?;
-    let merged_props = load_props(loader, bsp.static_props())?;
-    Ok(vec![cpu_model, merged_props])
+    let mut props = load_props(loader, bsp.static_props())?;
+    props.insert(0, cpu_model);
+    Ok(props)
 }
 
 fn apply_transform<C: Into<Vec3>>(coord: C, transform: Mat4) -> Vec3 {
@@ -125,31 +127,17 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
 fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     loader: &Loader,
     props: I,
-) -> Result<CpuModel, Error> {
-    let material = CpuMaterial {
-        albedo: Color {
-            r: 128,
-            g: 128,
-            b: 128,
-            a: 255,
-        },
-        ..Default::default()
-    };
-
+) -> Result<Vec<CpuModel>, Error> {
     let props = props.map(|prop| {
         let model = load_prop(loader, prop.model())?;
         let transform =
             Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
         Ok(ModelData { model, transform })
     });
-    let geometries = props
-        .map(|res| res.map(prop_to_mesh))
-        .collect::<Result<_, Error>>()?;
 
-    Ok(CpuModel {
-        geometries,
-        materials: vec![material],
-    })
+    props
+        .map(|res| res.map(|prop| prop_to_model(prop, loader)))
+        .collect::<Result<_, Error>>()
 }
 
 #[tracing::instrument(skip(loader))]
@@ -166,34 +154,96 @@ struct ModelData {
     transform: Mat4,
 }
 
-fn prop_to_mesh(prop: ModelData) -> CpuMesh {
+fn prop_to_model(prop: ModelData, loader: &Loader) -> CpuModel {
     let transform = prop.transform;
     let normal_transform = transform.invert().unwrap().transpose() * -1.0;
     let model = prop.model;
 
-    let positions = model
-        .vertices()
-        .iter()
-        .map(|v| map_coords(v.position))
-        .map(|v| apply_transform(v, transform))
-        .collect();
-    let normals = model
-        .vertices()
-        .iter()
-        .map(|v| map_coords(v.normal))
-        .map(|v| apply_transform(v, normal_transform))
-        .collect();
-    let indices = model
-        .vertex_strip_indices()
-        .flat_map(|strip| strip.map(|index| index as u32))
+    let skin = model.skin_tables().next().unwrap();
+
+    let geometries = model
+        .meshes()
+        .map(|mesh| {
+            let texture = skin
+                .texture(mesh.material_index())
+                .expect("texture out of bounds");
+
+            let positions: Vec<Vec3> = mesh
+                .vertices()
+                .map(|vertex| map_coords(vertex.position))
+                .map(|v| apply_transform(v, transform))
+                .collect();
+            let normals: Vec<Vec3> = mesh
+                .vertices()
+                .map(|vertex| map_coords(vertex.normal))
+                .map(|v| apply_transform(v, normal_transform))
+                .collect();
+            let uvs: Vec<Vec2> = mesh
+                .vertices()
+                .map(|vertex| Vec2 {
+                    x: vertex.texture_coordinates[0],
+                    y: vertex.texture_coordinates[1],
+                })
+                .collect();
+
+            CpuMesh {
+                positions: Positions::F32(positions),
+                normals: Some(normals),
+                uvs: Some(uvs),
+                material_name: Some(texture.into()),
+                ..Default::default()
+            }
+        })
         .collect();
 
-    CpuMesh {
-        positions: Positions::F32(positions),
-        normals: Some(normals),
-        indices: Indices::U32(indices),
-        ..Default::default()
+    let materials = model
+        .textures()
+        .iter()
+        .map(|texture| {
+            let dirs = model.texture_directories();
+            match load_texture(&texture.name, dirs, loader) {
+                Ok(texture) => CpuMaterial {
+                    albedo: Color::default(),
+                    name: texture.name.clone(),
+                    albedo_texture: Some(texture),
+                    ..Default::default()
+                },
+                Err(e) => CpuMaterial {
+                    albedo: Color {
+                        r: 255,
+                        g: 0,
+                        b: 255,
+                        a: 255,
+                    },
+                    name: texture.name.clone(),
+                    ..Default::default()
+                },
+            }
+        })
+        .collect();
+
+    CpuModel {
+        materials,
+        geometries,
     }
+}
+
+fn load_texture(name: &str, dirs: &[String], loader: &Loader) -> Result<CpuTexture, Error> {
+    let dirs = dirs
+        .iter()
+        .map(|dir| format!("materials/{}", dir))
+        .collect::<Vec<_>>();
+    let path = format!("{}.vtf", name);
+    let mut raw = loader.load_from_paths(&path, &dirs)?;
+    let vtf = VTF::read(&mut raw)?;
+    let image = vtf.highres_image.decode(0)?;
+    Ok(CpuTexture {
+        name: name.into(),
+        data: TextureData::RgbaU8(image.into_rgba8().pixels().map(|pixel| pixel.0).collect()),
+        height: vtf.header.height as u32,
+        width: vtf.header.width as u32,
+        ..CpuTexture::default()
+    })
 }
 
 fn load_world(data: &[u8], loader: &mut Loader) -> Result<(CpuModel, Bsp), Error> {

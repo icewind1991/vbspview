@@ -42,6 +42,8 @@ pub enum Error {
     #[error(transparent)]
     Vpk(#[from] vpk::Error),
     #[error(transparent)]
+    Vtf(#[from] vtf::Error),
+    #[error(transparent)]
     Mdl(#[from] vmdl::ModelError),
     #[error(transparent)]
     Demo(#[from] tf_demo_parser::ParseError),

@@ -92,4 +92,14 @@ impl Loader {
         error!("Failed to find {} in vpk", name);
         Err(Error::Other("Can't find file in vpks"))
     }
+
+    pub fn load_from_paths(&self, name: &str, paths: &[String]) -> Result<Vec<u8>, Error> {
+        for path in paths {
+            if let Ok(data) = self.load(&format!("{}{}", path, name)) {
+                return Ok(data);
+            }
+        }
+        error!("Failed to find {} in vpk paths: {}", name, paths.join(", "));
+        Err(Error::Other("Can't find file in vpks"))
+    }
 }

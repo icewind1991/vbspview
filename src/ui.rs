@@ -10,6 +10,7 @@ pub enum DebugType {
     Color,
     Depth,
     Orm,
+    Uv,
     None,
 }
 
@@ -70,6 +71,7 @@ impl DebugUI {
                     ui.radio_value(&mut self.debug_type, DebugType::Normal, "Normal");
                     ui.radio_value(&mut self.debug_type, DebugType::Color, "Color");
                     ui.radio_value(&mut self.debug_type, DebugType::Depth, "Depth");
+                    ui.radio_value(&mut self.debug_type, DebugType::Uv, "UV");
                     ui.radio_value(&mut self.debug_type, DebugType::Orm, "ORM");
 
                     ui.label("View options");
