@@ -5,6 +5,7 @@ use three_d::{
     Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Indices, Mat4, Positions, TextureData, Vec2,
     Vec3,
 };
+use tracing::error;
 use vbsp::{Bsp, Face, Handle, StaticPropLump};
 use vmdl::mdl::Mdl;
 use vmdl::vtx::Vtx;
@@ -132,7 +133,11 @@ fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
         let model = load_prop(loader, prop.model())?;
         let transform =
             Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
-        Ok(ModelData { model, transform })
+        Ok(ModelData {
+            model,
+            transform,
+            skin: prop.skin,
+        })
     });
 
     props
@@ -152,6 +157,7 @@ fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
 struct ModelData {
     model: vmdl::Model,
     transform: Mat4,
+    skin: i32,
 }
 
 fn prop_to_model(prop: ModelData, loader: &Loader) -> CpuModel {
@@ -159,7 +165,13 @@ fn prop_to_model(prop: ModelData, loader: &Loader) -> CpuModel {
     let normal_transform = transform.invert().unwrap().transpose() * -1.0;
     let model = prop.model;
 
-    let skin = model.skin_tables().next().unwrap();
+    let skin = match model.skin_tables().nth(prop.skin as usize) {
+        Some(skin) => skin,
+        None => {
+            error!(index = prop.skin, "invalid skin index");
+            model.skin_tables().next().unwrap()
+        }
+    };
 
     let geometries = model
         .meshes()
