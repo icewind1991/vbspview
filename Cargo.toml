@@ -25,7 +25,7 @@ tf-demo-parser = { version = "0.4.0", git = "https://github.com/demostf/parser" 
 steamid-ng = "1.0.0"
 clap = { version = "4.0.29", features = ["derive"] }
 splines = { version = "4.1.1", features = ["cgmath"] }
-vtf = { version = "0.1.5", git = "https://github.com/roman901/vtf-rs", rev = "55670df" }
+vtf = "0.1.6"
 steamy-vdf = { version = "0.3.0", path = "../rust/steamy/vdf" }
 
 [profile.dev.package."*"]
