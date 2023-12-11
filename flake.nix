@@ -35,8 +35,8 @@
       hostTarget = pkgs.hostPlatform.config;
       targets = ["x86_64-unknown-linux-musl" "x86_64-pc-windows-gnu" hostTarget];
 
-      artifactForTarget = target: "parse_demo${cross-naersk'.execSufficForTarget target}";
-      assetNameForTarget = target: "parser-${builtins.replaceStrings ["-unknown" "-gnu" "-musl" "eabihf" "-pc"] ["" "" "" "" ""] target}${cross-naersk'.execSufficForTarget target}";
+      artifactSuffixForTarget = cross-naersk'.execSufficForTarget;
+      assetSuffixForTarget = target: "${builtins.replaceStrings ["-unknown" "-gnu" "-musl" "eabihf" "-pc"] ["" "" "" "" ""] target}${cross-naersk'.execSufficForTarget target}";
 
       hostNaersk = naerskForTarget hostTarget;
       cross-naersk' = pkgs.callPackage cross-naersk {inherit naersk;};
@@ -59,6 +59,14 @@
         egl-wayland
         libGL
       ];
+
+      buildMatrix = targets: {
+        include = builtins.map (target: {
+          inherit target;
+          artifact_suffix = artifactSuffixForTarget target;
+          asset_suffix = assetSuffixForTarget target;
+        }) targets;
+      };
     in rec {
       packages = (lib.attrsets.genAttrs targets (target:(cross-naersk'.buildPackage target) nearskOpt)) // rec {
         vbspview = packages.${hostTarget};
@@ -70,6 +78,8 @@
         });
         default = vbspview;
       };
+
+      matrix = buildMatrix targets;
 
       inherit targets;
 
