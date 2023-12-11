@@ -43,9 +43,9 @@ pub fn load_material(
         })
         .collect::<Vec<_>>();
     let path = format!("{}.vmt", name.to_ascii_lowercase().trim_end_matches(".vmt"));
-    let raw = loader.load_from_paths(&path, &dirs)?;
+    let raw = loader.load_from_paths(&path, &dirs)?.to_ascii_lowercase();
 
-    let vmt = parse_vdf(raw)?;
+    let vmt = parse_vdf(&raw)?;
     let vmt = resolve_vmt_patch(vmt, loader)?;
 
     let material_type = vmt
@@ -53,6 +53,7 @@ pub fn load_material(
         .next()
         .ok_or(Error::Other("empty vmt"))?
         .to_ascii_lowercase();
+
     if material_type == "water" {
         return Ok(CpuMaterial {
             albedo: Color {
@@ -68,21 +69,23 @@ pub fn load_material(
 
     let table = vmt
         .values()
+        .cloned()
         .next()
-        .ok_or(Error::Other("empty vmt"))?
-        .as_table()
-        .ok_or(Error::Other("vmt not a table"))?;
+        .ok_or(Error::Other("empty vmt"))?;
     let base_texture = table
-        .iter()
-        .find_map(|(key, value)| (key.to_ascii_lowercase() == "$basetexture").then_some(value))
+        .lookup("$basetexture")
         .ok_or(Error::Other("no $basetexture"))?
-        .as_value()
-        .ok_or(Error::Other("$basetexture not a value"))?
-        .to_string()
-        .to_ascii_lowercase()
+        .as_str()
+        .ok_or(Error::Other("$basetexture not a string"))?
         .replace('\\', "/")
         .replace('\t', "/t");
-    let texture = load_texture(base_texture.as_str(), loader)?;
+
+    let translucent = table
+        .lookup("$translucent")
+        .map(|val| val.as_str() == Some("1"))
+        .unwrap_or_default();
+    let texture = load_texture(base_texture.as_str(), loader, translucent)?;
+
     Ok(CpuMaterial {
         name: name.into(),
         albedo: Color::WHITE,
@@ -91,8 +94,8 @@ pub fn load_material(
     })
 }
 
-fn parse_vdf(bytes: Vec<u8>) -> Result<Table, Error> {
-    let mut reader = steamy_vdf::Reader::from(bytes.as_slice());
+fn parse_vdf(bytes: &[u8]) -> Result<Table, Error> {
+    let mut reader = steamy_vdf::Reader::from(bytes);
     Table::load(&mut reader).map_err(|e| {
         error!(
             source = String::from_utf8_lossy(&bytes).to_string(),
@@ -102,7 +105,7 @@ fn parse_vdf(bytes: Vec<u8>) -> Result<Table, Error> {
     })
 }
 
-fn load_texture(name: &str, loader: &Loader) -> Result<CpuTexture, Error> {
+fn load_texture(name: &str, loader: &Loader, translucent: bool) -> Result<CpuTexture, Error> {
     let path = format!(
         "materials/{}.vtf",
         name.trim_end_matches(".vtf").trim_start_matches("/")
@@ -110,9 +113,14 @@ fn load_texture(name: &str, loader: &Loader) -> Result<CpuTexture, Error> {
     let mut raw = loader.load(&path)?;
     let vtf = VTF::read(&mut raw)?;
     let image = vtf.highres_image.decode(0)?;
+    let texture_data = if translucent {
+        TextureData::RgbaU8(image.into_rgba8().pixels().map(|pixel| pixel.0).collect())
+    } else {
+        TextureData::RgbU8(image.into_rgb8().pixels().map(|pixel| pixel.0).collect())
+    };
     Ok(CpuTexture {
         name: name.into(),
-        data: TextureData::RgbaU8(image.into_rgba8().pixels().map(|pixel| pixel.0).collect()),
+        data: texture_data,
         height: vtf.header.height as u32,
         width: vtf.header.width as u32,
         ..CpuTexture::default()
@@ -135,10 +143,10 @@ fn resolve_vmt_patch(vmt: Table, loader: &Loader) -> Result<Table, Error> {
             .expect("no replace in patch")
             .as_table()
             .expect("replace is not a table");
-        let included_raw = loader.load(&include.to_ascii_lowercase())?;
+        let included_raw = loader.load(&include)?.to_ascii_lowercase();
 
         // todo actually patch
-        parse_vdf(included_raw)
+        parse_vdf(&included_raw)
     } else {
         Ok(vmt)
     }
