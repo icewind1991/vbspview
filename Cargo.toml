@@ -7,16 +7,16 @@ license = "MIT"
 
 [dependencies]
 three-d = { version = "0.14.0", features = ["egui-gui"] }
-#vbsp = { version = "0.2.0", git = "https://github.com/icewind1991/vbsp" }
-vbsp = { version = "0.2.0", path = "../bsp" }
+vbsp = { version = "0.2.0", git = "https://github.com/icewind1991/vbsp" }
+#vbsp = { version = "0.2.0", path = "../bsp" }
 miette = { version = "5.5.0", features = ["fancy"] }
 thiserror = "1.0.37"
 delaunator = "1.0.1"
 itertools = "0.10.5"
 steamlocate = "2.0.0-alpha.0"
 vpk = "0.2.0"
-#vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
-vmdl = { version = "*", path = "../vmdl" }
+vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
+#vmdl = { version = "*", path = "../vmdl" }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing-tree = "0.2.2"
@@ -26,7 +26,7 @@ steamid-ng = "1.0.0"
 clap = { version = "4.0.29", features = ["derive"] }
 splines = { version = "4.1.1", features = ["cgmath"] }
 vtf = "0.1.6"
-steamy-vdf = { version = "0.3.0", path = "../rust/steamy/vdf" }
+steamy-vdf = { version = "0.3.0", git = "https://github.com/icewind1991/steamy", branch = "nom7" }
 
 [profile.dev.package."*"]
 opt-level = 2

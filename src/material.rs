@@ -1,6 +1,5 @@
 use crate::loader::Loader;
 use crate::Error;
-use std::io::Cursor;
 use steamy_vdf::{Entry, Table};
 use three_d::{Color, CpuMaterial, CpuTexture, TextureData};
 use tracing::error;
@@ -93,7 +92,7 @@ pub fn load_material(
 }
 
 fn parse_vdf(bytes: Vec<u8>) -> Result<Table, Error> {
-    let mut reader = steamy_vdf::read(Cursor::new(&bytes))?;
+    let mut reader = steamy_vdf::Reader::from(bytes.as_slice());
     Table::load(&mut reader).map_err(|e| {
         error!(
             source = String::from_utf8_lossy(&bytes).to_string(),
