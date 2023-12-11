@@ -7,6 +7,9 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     rust-overlay.inputs.flake-utils.follows = "utils";
+    cross-naersk.url = "github:icewind1991/cross-naersk";
+    cross-naersk.inputs.nixpkgs.follows = "nixpkgs";
+    cross-naersk.inputs.naersk.follows = "naersk";
   };
 
   outputs = {
@@ -15,6 +18,7 @@
     utils,
     naersk,
     rust-overlay,
+    cross-naersk,
   }:
     utils.lib.eachDefaultSystem (system: let
       overlays = [ (import rust-overlay) ];
@@ -29,8 +33,13 @@
         rustc = toolchain;
       };
       hostTarget = pkgs.hostPlatform.config;
-      targets = ["x86_64-unknown-linux-musl" hostTarget];
+      targets = ["x86_64-unknown-linux-musl" "x86_64-pc-windows-gnu" hostTarget];
+
+      artifactForTarget = target: "parse_demo${cross-naersk'.execSufficForTarget target}";
+      assetNameForTarget = target: "parser-${builtins.replaceStrings ["-unknown" "-gnu" "-musl" "eabihf" "-pc"] ["" "" "" "" ""] target}${cross-naersk'.execSufficForTarget target}";
+
       hostNaersk = naerskForTarget hostTarget;
+      cross-naersk' = pkgs.callPackage cross-naersk {inherit naersk;};
       src = lib.sources.sourceByRegex (lib.cleanSource ./.) ["Cargo.*" "(src)(/.*)?"];
       nearskOpt = {
         pname = "vbspview";
@@ -51,7 +60,7 @@
         libGL
       ];
     in rec {
-      packages = (lib.attrsets.genAttrs targets (target: (naerskForTarget target).buildPackage nearskOpt)) // rec {
+      packages = (lib.attrsets.genAttrs targets (target:(cross-naersk'.buildPackage target) nearskOpt)) // rec {
         vbspview = packages.${hostTarget};
         check = hostNaersk.buildPackage (nearskOpt // {
           mode = "check";

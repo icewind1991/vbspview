@@ -1,5 +1,28 @@
 {
   "nodes": {
+    "cross-naersk": {
+      "inputs": {
+        "naersk": [
+          "naersk"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1689107909,
+        "narHash": "sha256-fb+zxf7AWesECHx1foXOM3NcKHLrdeXzGb6s2AhT6pE=",
+        "owner": "icewind1991",
+        "repo": "cross-naersk",
+        "rev": "51de54599de569e6faa2ee33dd659c5c028d9911",
+        "type": "github"
+      },
+      "original": {
+        "owner": "icewind1991",
+        "repo": "cross-naersk",
+        "type": "github"
+      }
+    },
     "naersk": {
       "inputs": {
         "nixpkgs": [
@@ -37,6 +60,7 @@
     },
     "root": {
       "inputs": {
+        "cross-naersk": "cross-naersk",
         "naersk": "naersk",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay",
