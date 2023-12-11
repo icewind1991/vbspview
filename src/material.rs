@@ -38,7 +38,7 @@ pub fn load_material(
         .map(|dir| {
             format!(
                 "materials/{}",
-                dir.to_ascii_lowercase().trim_start_matches("/")
+                dir.to_ascii_lowercase().trim_start_matches('/')
             )
         })
         .collect::<Vec<_>>();
@@ -69,8 +69,8 @@ pub fn load_material(
 
     let table = vmt
         .values()
-        .cloned()
         .next()
+        .cloned()
         .ok_or(Error::Other("empty vmt"))?;
     let base_texture = table
         .lookup("$basetexture")
@@ -98,7 +98,7 @@ fn parse_vdf(bytes: &[u8]) -> Result<Table, Error> {
     let mut reader = steamy_vdf::Reader::from(bytes);
     Table::load(&mut reader).map_err(|e| {
         error!(
-            source = String::from_utf8_lossy(&bytes).to_string(),
+            source = String::from_utf8_lossy(bytes).to_string(),
             "failed to parse vmt"
         );
         e.into()
@@ -108,7 +108,7 @@ fn parse_vdf(bytes: &[u8]) -> Result<Table, Error> {
 fn load_texture(name: &str, loader: &Loader, translucent: bool) -> Result<CpuTexture, Error> {
     let path = format!(
         "materials/{}.vtf",
-        name.trim_end_matches(".vtf").trim_start_matches("/")
+        name.trim_end_matches(".vtf").trim_start_matches('/')
     );
     let mut raw = loader.load(&path)?;
     let vtf = VTF::read(&mut raw)?;
