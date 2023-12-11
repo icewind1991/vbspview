@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::PathBuf;
 use steamlocate::SteamDir;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use vbsp::Packfile;
 use vpk::VPK;
 
@@ -89,8 +89,8 @@ impl Loader {
                 return Ok(data);
             }
         }
-        error!("Failed to find {} in vpk", name);
-        Err(Error::Other("Can't find file in vpks"))
+        info!("Failed to find {} in vpk", name);
+        Err(Error::ResourceNotFound(name.to_string()))
     }
 
     pub fn load_from_paths(&self, name: &str, paths: &[String]) -> Result<Vec<u8>, Error> {
@@ -100,6 +100,6 @@ impl Loader {
             }
         }
         error!("Failed to find {} in vpk paths: {}", name, paths.join(", "));
-        Err(Error::Other("Can't find file in vpks"))
+        Err(Error::ResourceNotFound(name.to_string()))
     }
 }

@@ -1,10 +1,9 @@
+use crate::material::load_material_fallback;
 use crate::prop::load_props;
 use crate::{Error, Loader};
 use cgmath::vec4;
 use std::collections::HashMap;
-use three_d::{
-    Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Mat4, Positions, TextureData, Vec2, Vec3,
-};
+use three_d::{CpuMesh, CpuModel, Mat4, Positions, Vec2, Vec3};
 use vbsp::{Bsp, Face, Handle};
 
 pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CpuModel>, Error> {
@@ -84,32 +83,7 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
         .values()
         .map(|face| {
             let texture = face.first().unwrap().texture();
-            let tex_file = format!("materials/{}.vtf", texture.name().to_lowercase());
-            let vtf_data = loader.load(&tex_file).ok();
-            let texture_data = vtf_data.and_then(|mut vtf_data| {
-                let vtf = vtf::from_bytes(&mut vtf_data).ok()?;
-                let image = vtf.highres_image.decode(0).ok()?;
-                Some(CpuTexture {
-                    name: texture.name().into(),
-                    data: TextureData::RgbaU8(
-                        image.into_rgba8().pixels().map(|pixel| pixel.0).collect(),
-                    ),
-                    height: texture.texture_data().height as u32,
-                    width: texture.texture_data().width as u32,
-                    ..CpuTexture::default()
-                })
-            });
-            let color = if texture_data.is_some() {
-                Color::default()
-            } else {
-                Color::new(255, 0, 255, 255)
-            };
-            CpuMaterial {
-                albedo: color,
-                albedo_texture: texture_data,
-                name: texture.name().into(),
-                ..Default::default()
-            }
+            load_material_fallback(texture.name(), &["".into()], loader)
         })
         .collect();
 

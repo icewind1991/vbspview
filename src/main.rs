@@ -2,6 +2,7 @@ mod bsp;
 mod control;
 mod demo;
 mod loader;
+mod material;
 mod prop;
 mod renderer;
 mod ui;
@@ -9,6 +10,7 @@ mod wrapping;
 
 use clap::Parser;
 use std::fs;
+use std::string::FromUtf8Error;
 
 use crate::bsp::load_map;
 use crate::control::{Control, DemoCamera};
@@ -45,6 +47,8 @@ pub enum Error {
     #[error(transparent)]
     Vtf(#[from] vtf::Error),
     #[error(transparent)]
+    Vdf(#[from] steamy_vdf::Error),
+    #[error(transparent)]
     Mdl(#[from] vmdl::ModelError),
     #[error(transparent)]
     Demo(#[from] tf_demo_parser::ParseError),
@@ -54,6 +58,10 @@ pub enum Error {
     Window(#[from] WindowError),
     #[error(transparent)]
     Render(#[from] RendererError),
+    #[error(transparent)]
+    String(#[from] FromUtf8Error),
+    #[error("resource {0} not found in vpks or pack")]
+    ResourceNotFound(String),
 }
 
 impl From<&'static str> for Error {

@@ -1,16 +1,14 @@
 use crate::bsp::{apply_transform, map_coords};
+use crate::material::load_material_fallback;
 use crate::{Error, Loader};
 use cgmath::{Matrix, SquareMatrix};
 use std::collections::HashMap;
-use three_d::{
-    Color, CpuMaterial, CpuMesh, CpuModel, CpuTexture, Mat4, Positions, TextureData, Vec2, Vec3,
-};
-use tracing::error;
+use three_d::{CpuMaterial, CpuMesh, CpuModel, Mat4, Positions, Vec2, Vec3};
+use tracing::warn;
 use vbsp::{Handle, StaticPropLump};
 use vmdl::mdl::{Mdl, TextureInfo};
 use vmdl::vtx::Vtx;
 use vmdl::vvd::Vvd;
-use vtf::vtf::VTF;
 
 #[tracing::instrument(skip(loader))]
 pub fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
@@ -68,7 +66,7 @@ fn prop_to_meshes(prop: &PropData) -> impl Iterator<Item = CpuMesh> + '_ {
     let skin = match model.skin_tables().nth(prop.skin as usize) {
         Some(skin) => skin,
         None => {
-            error!(index = prop.skin, "invalid skin index");
+            warn!(index = prop.skin, "invalid skin index");
             model.skin_tables().next().unwrap()
         }
     };
@@ -104,40 +102,5 @@ fn prop_to_meshes(prop: &PropData) -> impl Iterator<Item = CpuMesh> + '_ {
 }
 
 fn prop_texture_to_material(texture: &TextureInfo, loader: &Loader) -> CpuMaterial {
-    match load_texture(&texture.name, &texture.search_paths, loader) {
-        Ok(texture) => CpuMaterial {
-            albedo: Color::default(),
-            name: texture.name.clone(),
-            albedo_texture: Some(texture),
-            ..Default::default()
-        },
-        Err(_) => CpuMaterial {
-            albedo: Color {
-                r: 255,
-                g: 0,
-                b: 255,
-                a: 255,
-            },
-            name: texture.name.clone(),
-            ..Default::default()
-        },
-    }
-}
-
-fn load_texture(name: &str, dirs: &[String], loader: &Loader) -> Result<CpuTexture, Error> {
-    let dirs = dirs
-        .iter()
-        .map(|dir| format!("materials/{}", dir))
-        .collect::<Vec<_>>();
-    let path = format!("{}.vtf", name);
-    let mut raw = loader.load_from_paths(&path, &dirs)?;
-    let vtf = VTF::read(&mut raw)?;
-    let image = vtf.highres_image.decode(0)?;
-    Ok(CpuTexture {
-        name: name.into(),
-        data: TextureData::RgbaU8(image.into_rgba8().pixels().map(|pixel| pixel.0).collect()),
-        height: vtf.header.height as u32,
-        width: vtf.header.width as u32,
-        ..CpuTexture::default()
-    })
+    load_material_fallback(&texture.name, &texture.search_paths, loader)
 }
