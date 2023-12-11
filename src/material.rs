@@ -43,23 +43,42 @@ pub fn load_material(
             )
         })
         .collect::<Vec<_>>();
-    let path = format!("{}.vmt", name.to_ascii_lowercase());
+    let path = format!("{}.vmt", name.to_ascii_lowercase().trim_end_matches(".vmt"));
     let raw = loader.load_from_paths(&path, &dirs)?;
 
     let vmt = parse_vdf(raw)?;
     let vmt = resolve_vmt_patch(vmt, loader)?;
+
+    let material_type = vmt
+        .keys()
+        .next()
+        .ok_or(Error::Other("empty vmt"))?
+        .to_ascii_lowercase();
+    if material_type == "water" {
+        return Ok(CpuMaterial {
+            albedo: Color {
+                r: 82,
+                g: 180,
+                b: 217,
+                a: 128,
+            },
+            name: name.into(),
+            ..Default::default()
+        });
+    }
+
     let table = vmt
         .values()
         .next()
-        .expect("empty vmt")
+        .ok_or(Error::Other("empty vmt"))?
         .as_table()
-        .expect("vmt not a table");
+        .ok_or(Error::Other("vmt not a table"))?;
     let base_texture = table
         .iter()
         .find_map(|(key, value)| (key.to_ascii_lowercase() == "$basetexture").then_some(value))
-        .expect("no $basetexture")
+        .ok_or(Error::Other("no $basetexture"))?
         .as_value()
-        .expect("$basetexture not a value")
+        .ok_or(Error::Other("$basetexture not a value"))?
         .to_string()
         .to_ascii_lowercase()
         .replace('\\', "/")
