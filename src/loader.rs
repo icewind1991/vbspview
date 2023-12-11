@@ -1,4 +1,5 @@
 use crate::Error;
+use std::env::var;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::PathBuf;
@@ -33,12 +34,15 @@ impl Loader {
     }
 
     pub fn with_opt_pack(pack: Option<Packfile>) -> Result<Self, Error> {
-        let tf_dir = SteamDir::locate()
-            .ok_or("Can't find steam directory")?
-            .app(&440)
-            .ok_or("Can't find tf2 directory")?
-            .path
-            .join("tf");
+        let tf_dir = match var("TF_DIR") {
+            Ok(dir) => PathBuf::from(dir).join("tf"),
+            Err(_) => SteamDir::locate()
+                .ok_or("Can't find steam directory")?
+                .app(&440)
+                .ok_or("Can't find tf2 directory")?
+                .path
+                .join("tf"),
+        };
         let download = tf_dir.join("download");
         let vpks = tf_dir
             .read_dir()?
