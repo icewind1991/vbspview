@@ -34,19 +34,24 @@ impl Loader {
     }
 
     pub fn with_opt_pack(pack: Option<Packfile>) -> Result<Self, Error> {
-        let tf_dir = match var("TF_DIR") {
-            Ok(dir) => PathBuf::from(dir).join("tf"),
+        let tf2_dir = match var("TF_DIR") {
+            Ok(dir) => PathBuf::from(dir),
             Err(_) => SteamDir::locate()
                 .ok_or("Can't find steam directory")?
                 .app(&440)
                 .ok_or("Can't find tf2 directory")?
                 .path
-                .join("tf"),
+                .clone(),
         };
+        let tf_dir = tf2_dir.join("tf");
+        let vpk_dirs = [tf_dir.clone(), tf2_dir.join("hl2")];
+
         let download = tf_dir.join("download");
-        let vpks = tf_dir
-            .read_dir()?
-            .filter_map(|item| item.ok())
+        let vpks = vpk_dirs
+            .iter()
+            .flat_map(|dir| dir.read_dir())
+            .flatten()
+            .flatten()
             .filter_map(|item| Some(item.path().to_str()?.to_string()))
             .filter(|path| path.ends_with("dir.vpk"))
             .map(|path| vpk::from_path(&path))
