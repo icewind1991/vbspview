@@ -1,5 +1,6 @@
 use crate::loader::Loader;
 use crate::Error;
+use std::str::FromStr;
 use steamy_vdf::{Entry, Table};
 use three_d::{Color, CpuMaterial, CpuTexture, TextureData};
 use tracing::error;
@@ -84,12 +85,31 @@ pub fn load_material(
         .lookup("$translucent")
         .map(|val| val.as_str() == Some("1"))
         .unwrap_or_default();
-    let texture = load_texture(base_texture.as_str(), loader, translucent)?;
+    let glass = table
+        .lookup("$surfaceprop")
+        .map(|val| val.as_str() == Some("glass"))
+        .unwrap_or_default();
+    let alpha_test = table
+        .lookup("$alphatest")
+        .map(|val| val.as_str() == Some("1"))
+        .unwrap_or_default();
+    let texture = load_texture(
+        base_texture.as_str(),
+        loader,
+        translucent | glass | alpha_test,
+    )?;
+
+    let alpha_cutout = table
+        .lookup("$alphatestreference")
+        .and_then(Entry::as_str)
+        .and_then(|val| f32::from_str(val).ok())
+        .unwrap_or(1.0);
 
     Ok(CpuMaterial {
         name: name.into(),
         albedo: Color::WHITE,
         albedo_texture: Some(texture),
+        alpha_cutout: alpha_test.then_some(alpha_cutout),
         ..CpuMaterial::default()
     })
 }
@@ -105,7 +125,7 @@ fn parse_vdf(bytes: &[u8]) -> Result<Table, Error> {
     })
 }
 
-fn load_texture(name: &str, loader: &Loader, translucent: bool) -> Result<CpuTexture, Error> {
+fn load_texture(name: &str, loader: &Loader, alpha: bool) -> Result<CpuTexture, Error> {
     let path = format!(
         "materials/{}.vtf",
         name.trim_end_matches(".vtf").trim_start_matches('/')
@@ -113,7 +133,7 @@ fn load_texture(name: &str, loader: &Loader, translucent: bool) -> Result<CpuTex
     let mut raw = loader.load(&path)?;
     let vtf = VTF::read(&mut raw)?;
     let image = vtf.highres_image.decode(0)?;
-    let texture_data = if translucent {
+    let texture_data = if alpha {
         TextureData::RgbaU8(image.into_rgba8().pixels().map(|pixel| pixel.0).collect())
     } else {
         TextureData::RgbU8(image.into_rgb8().pixels().map(|pixel| pixel.0).collect())
