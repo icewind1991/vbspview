@@ -118,6 +118,8 @@ pub fn load_material(
 }
 
 fn parse_vdf(bytes: &[u8]) -> Result<Table, Error> {
+    #[cfg(feature = "dump_materials")]
+    println!("{}", String::from_utf8_lossy(bytes));
     let mut reader = steamy_vdf::Reader::from(bytes);
     Table::load(&mut reader).map_err(|e| {
         error!(

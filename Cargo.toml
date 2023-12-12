@@ -30,3 +30,6 @@ steamy-vdf = { version = "0.3.0", git = "https://github.com/icewind1991/steamy",
 
 [profile.dev.package."*"]
 opt-level = 2
+
+[features]
+dump_materials = []
