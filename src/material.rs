@@ -29,6 +29,10 @@ pub fn load_material_fallback(name: &str, search_dirs: &[String], loader: &Loade
     }
 }
 
+fn get_path(vmt: &Entry, name: &str) -> Option<String> {
+    Some(vmt.lookup(name)?.as_str()?.replace('\\', "/"))
+}
+
 pub fn load_material(
     name: &str,
     search_dirs: &[String],
@@ -73,13 +77,7 @@ pub fn load_material(
         .next()
         .cloned()
         .ok_or(Error::Other("empty vmt"))?;
-    let base_texture = table
-        .lookup("$basetexture")
-        .ok_or(Error::Other("no $basetexture"))?
-        .as_str()
-        .ok_or(Error::Other("$basetexture not a string"))?
-        .replace('\\', "/")
-        .replace('\t', "/t");
+    let base_texture = get_path(&table, "$basetexture").ok_or(Error::Other("no $basetexture"))?;
 
     let translucent = table
         .lookup("$translucent")
@@ -105,11 +103,16 @@ pub fn load_material(
         .and_then(|val| f32::from_str(val).ok())
         .unwrap_or(1.0);
 
+    let bump_map = get_path(&table, "$bumpmap")
+        .map(|path| load_texture(&path, loader, true).ok())
+        .flatten();
+
     Ok(CpuMaterial {
         name: name.into(),
         albedo: Color::WHITE,
         albedo_texture: Some(texture),
         alpha_cutout: alpha_test.then_some(alpha_cutout),
+        normal_texture: bump_map,
         ..CpuMaterial::default()
     })
 }

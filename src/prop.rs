@@ -3,7 +3,7 @@ use crate::material::load_material_fallback;
 use crate::{Error, Loader};
 use cgmath::{Matrix, SquareMatrix};
 use std::collections::HashMap;
-use three_d::{CpuMaterial, CpuMesh, CpuModel, Mat4, Positions, Vec2, Vec3};
+use three_d::{CpuMaterial, CpuMesh, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use tracing::warn;
 use vbsp::{Handle, StaticPropLump};
 use vmdl::mdl::{Mdl, TextureInfo};
@@ -91,11 +91,14 @@ fn prop_to_meshes(prop: &PropData) -> impl Iterator<Item = CpuMesh> + '_ {
             .map(|vertex| vertex.texture_coordinates.into())
             .collect();
 
+        let tangents: Vec<Vec4> = mesh.tangents().map(|tangent| tangent.into()).collect();
+
         CpuMesh {
             positions: Positions::F32(positions),
             normals: Some(normals),
             uvs: Some(uvs),
             material_name: Some(texture.into()),
+            tangents: Some(tangents),
             ..Default::default()
         }
     })

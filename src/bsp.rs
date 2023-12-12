@@ -47,6 +47,7 @@ fn face_to_mesh(face: &Handle<Face>) -> CpuMesh {
         ..Default::default()
     };
     mesh.compute_normals();
+    mesh.compute_tangents();
     mesh
 }
 
