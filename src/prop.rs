@@ -34,6 +34,7 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
             let transform =
                 Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
             PropData {
+                name: prop.model(),
                 model,
                 transform,
                 skin: prop.skin,
@@ -65,7 +66,8 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     })
 }
 
-struct PropData {
+struct PropData<'a> {
+    name: &'a str,
     model: vmdl::Model,
     transform: Mat4,
     skin: i32,
@@ -81,7 +83,7 @@ fn prop_to_meshes<'a>(
     let skin = match model.skin_tables().nth(prop.skin as usize) {
         Some(skin) => skin,
         None => {
-            warn!(index = prop.skin, "invalid skin index");
+            warn!(index = prop.skin, prop = prop.name, "invalid skin index");
             model.skin_tables().next().unwrap()
         }
     };
