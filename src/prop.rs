@@ -4,7 +4,7 @@ use crate::{Error, Loader};
 use std::collections::HashMap;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use three_d_asset::{Geometry, Primitive, TriMesh};
-use tracing::warn;
+use tracing::{error, warn};
 use vbsp::{Handle, StaticPropLump};
 use vmdl::mdl::{Mdl, TextureInfo};
 use vmdl::vtx::Vtx;
@@ -23,8 +23,14 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     props: I,
 ) -> Result<CpuModel, Error> {
     let props: Vec<PropData> = props
-        .map(|prop| {
-            let model = load_prop(loader, prop.model())?;
+        .filter_map(|prop| match load_prop(loader, prop.model()) {
+            Ok(model) => Some((prop, model)),
+            Err(e) => {
+                error!(error = ?e, prop = prop.model(), "Failed to load prop");
+                None
+            }
+        })
+        .map(|(prop, model)| {
             let transform =
                 Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
             Ok::<_, Error>(PropData {
