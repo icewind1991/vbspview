@@ -56,5 +56,5 @@ jobs:
       - run: nix build .#${{ matrix.target }}
       - uses: actions/upload-artifact@v3
         with:
-          name: vbspview-${{ matrix.asset_suffix }}
+          name: vbspview-${{ matrix.target }}
           path: result/bin/vbspview${{ matrix.artifact_suffix }}

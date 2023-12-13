@@ -2,7 +2,8 @@ use crate::loader::Loader;
 use crate::Error;
 use std::str::FromStr;
 use steamy_vdf::{Entry, Table};
-use three_d::{Color, CpuMaterial, CpuTexture, TextureData};
+use three_d::{CpuMaterial, CpuTexture, TextureData};
+use three_d_asset::Srgba;
 use tracing::error;
 use vtf::vtf::VTF;
 
@@ -16,7 +17,7 @@ pub fn load_material_fallback(name: &str, search_dirs: &[String], loader: &Loade
                 "failed to load material, falling back"
             );
             CpuMaterial {
-                albedo: Color {
+                albedo: Srgba {
                     r: 255,
                     g: 0,
                     b: 255,
@@ -61,7 +62,7 @@ pub fn load_material(
 
     if material_type == "water" {
         return Ok(CpuMaterial {
-            albedo: Color {
+            albedo: Srgba {
                 r: 82,
                 g: 180,
                 b: 217,
@@ -109,7 +110,7 @@ pub fn load_material(
 
     Ok(CpuMaterial {
         name: name.into(),
-        albedo: Color::WHITE,
+        albedo: Srgba::WHITE,
         albedo_texture: Some(texture),
         alpha_cutout: alpha_test.then_some(alpha_cutout),
         normal_texture: bump_map,
@@ -159,16 +160,15 @@ fn resolve_vmt_patch(vmt: Table, loader: &Loader) -> Result<Table, Error> {
     if let Some(Entry::Table(patch)) = vmt.get("patch") {
         let include = patch
             .get("include")
-            .expect("no include in patch")
-            .as_value()
-            .expect("include is not a value")
-            .to_string();
+            .ok_or(Error::Other("no include in patch"))?
+            .as_str()
+            .ok_or(Error::Other("include is not a string"))?;
         let _replace = patch
             .get("replace")
-            .expect("no replace in patch")
+            .ok_or(Error::Other("no replace in patch"))?
             .as_table()
-            .expect("replace is not a table");
-        let included_raw = loader.load(&include)?.to_ascii_lowercase();
+            .ok_or(Error::Other("replace is not a table"))?;
+        let included_raw = loader.load(include)?.to_ascii_lowercase();
 
         // todo actually patch
         parse_vdf(&included_raw)

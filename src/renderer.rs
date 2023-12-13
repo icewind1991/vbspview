@@ -24,17 +24,17 @@ impl<C: Control> Renderer<C> {
             vec3(0.0, 1.0, 0.0),
             degrees(60.0),
             0.1,
-            30.0,
+            45.0,
         );
 
         let ambient_lights = vec![AmbientLight {
-            color: Color::WHITE,
+            color: Srgba::WHITE,
             intensity: 0.2,
             ..Default::default()
         }];
         let directional_lights = vec![
-            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, -1.0, 0.0)),
-            DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0, 1.0, 0.0)),
+            DirectionalLight::new(&context, 1.0, Srgba::WHITE, &vec3(0.0, -1.0, 0.0)),
+            DirectionalLight::new(&context, 1.0, Srgba::WHITE, &vec3(0.0, 1.0, 0.0)),
         ];
         // let control = FirstPerson::new(0.1);
 
@@ -68,11 +68,8 @@ impl<C: Control> Renderer<C> {
             self.directional_lights[0].intensity = self.gui.directional_intensity;
             self.directional_lights[1].intensity = self.gui.directional_intensity;
             self.ambient_lights[0].intensity = self.gui.ambient_intensity;
-            self.camera.set_perspective_projection(
-                degrees(self.gui.fov),
-                self.camera.z_near(),
-                self.camera.z_far(),
-            );
+            self.camera
+                .set_perspective_projection(degrees(self.gui.fov), 0.1, 45.0);
         }
 
         let viewport = Viewport {

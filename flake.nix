@@ -35,22 +35,24 @@
       hostTarget = pkgs.hostPlatform.config;
       targets = ["x86_64-unknown-linux-musl" "x86_64-pc-windows-gnu" hostTarget];
 
-      artifactSuffixForTarget = cross-naersk'.execSufficForTarget;
-      assetSuffixForTarget = target: "${builtins.replaceStrings ["-unknown" "-gnu" "-musl" "eabihf" "-pc"] ["" "" "" "" ""] target}${cross-naersk'.execSufficForTarget target}";
-
       hostNaersk = naerskForTarget hostTarget;
       cross-naersk' = pkgs.callPackage cross-naersk {inherit naersk;};
       src = lib.sources.sourceByRegex (lib.cleanSource ./.) ["Cargo.*" "(src)(/.*)?"];
       nearskOpt = {
         pname = "vbspview";
         root = src;
-        nativeBuildInputs = buildDependencies;
+        nativeBuildInputs = (buildDependencies pkgs) ++ (runtimeDependencies pkgs);
       };
-      buildDependencies = with pkgs; [
-        freetype
-        pkg-config
-        cmake
-        fontconfig
+      crossOpts = {
+        crossArgs = {
+          "x86_64-unknown-linux-musl" = {
+#            targetNativeBuildInputs = buildDependencies;
+#            buildInputs = runtimeDependencies pkgs.pkgsCross.musl64;
+          };
+        };
+      };
+
+      runtimeDependencies = pkgsForPlatform: with pkgsForPlatform; [
         xorg.libX11
         xorg.libXcursor
         xorg.libXrandr
@@ -59,12 +61,17 @@
         egl-wayland
         libGL
       ];
+      buildDependencies = pkgsForPlatform: with pkgsForPlatform; [
+        fontconfig
+        freetype
+        pkg-config
+        cmake
+      ];
 
       buildMatrix = targets: {
         include = builtins.map (target: {
           inherit target;
-          artifact_suffix = artifactSuffixForTarget target;
-          asset_suffix = assetSuffixForTarget target;
+          artifact_suffix = cross-naersk'.execSufficForTarget target;
         }) targets;
       };
     in rec {
@@ -72,9 +79,11 @@
         vbspview = packages.${hostTarget};
         check = hostNaersk.buildPackage (nearskOpt // {
           mode = "check";
+          buildInputs = buildDependencies pkgs;
         });
         clippy = hostNaersk.buildPackage (nearskOpt // {
           mode = "clippy";
+          buildInputs = buildDependencies pkgs;
         });
         default = vbspview;
       };
@@ -84,7 +93,7 @@
       inherit targets;
 
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
+        nativeBuildInputs = (with pkgs; [
           pkgs.rust-bin.stable.latest.default
           bacon
           cargo-edit
@@ -92,7 +101,7 @@
           clippy
           cargo-audit
           cargo-msrv
-        ] ++ buildDependencies;
+        ]) ++ (buildDependencies pkgs) ++ (runtimeDependencies pkgs);
 
         LD_LIBRARY_PATH = with pkgs; "/run/opengl-driver/lib/:${lib.makeLibraryPath ([libGL libGLU])}";
       };

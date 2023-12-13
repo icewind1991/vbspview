@@ -1,9 +1,9 @@
-use crate::bsp::{apply_transform, map_coords};
+use crate::bsp::map_coords;
 use crate::material::load_material_fallback;
 use crate::{Error, Loader};
-use cgmath::{Matrix, SquareMatrix};
 use std::collections::HashMap;
-use three_d::{CpuMaterial, CpuMesh, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
+use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
+use three_d_asset::{Geometry, Primitive, TriMesh};
 use tracing::warn;
 use vbsp::{Handle, StaticPropLump};
 use vmdl::mdl::{Mdl, TextureInfo};
@@ -35,18 +35,25 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
         })
         .collect::<Result<_, _>>()?;
 
-    let geometries = props.iter().flat_map(prop_to_meshes).collect();
-
-    let textures: HashMap<_, _> = props
+    let materials: HashMap<_, _> = props
         .iter()
         .flat_map(|prop| prop.model.textures())
         .map(|tex| (tex.name.as_str(), tex))
         .collect();
-    let materials: Vec<_> = textures
-        .into_values()
+    let materials: Vec<_> = materials.into_values().collect();
+
+    let geometries = props
+        .iter()
+        .flat_map(|prop| prop_to_meshes(prop, materials.as_slice()))
+        .collect();
+
+    let materials: Vec<_> = materials
+        .into_iter()
         .map(|tex| prop_texture_to_material(tex, loader))
         .collect();
+
     Ok(CpuModel {
+        name: "props".into(),
         geometries,
         materials,
     })
@@ -58,9 +65,11 @@ struct PropData {
     skin: i32,
 }
 
-fn prop_to_meshes(prop: &PropData) -> impl Iterator<Item = CpuMesh> + '_ {
+fn prop_to_meshes<'a>(
+    prop: &'a PropData,
+    textures: &'a [&TextureInfo],
+) -> impl Iterator<Item = Primitive> + 'a {
     let transform = prop.transform;
-    let normal_transform = transform.invert().unwrap().transpose() * -1.0;
     let model = &prop.model;
 
     let skin = match model.skin_tables().nth(prop.skin as usize) {
@@ -75,16 +84,20 @@ fn prop_to_meshes(prop: &PropData) -> impl Iterator<Item = CpuMesh> + '_ {
         let texture = skin
             .texture(mesh.material_index())
             .expect("texture out of bounds");
+        let material_index = textures
+            .iter()
+            .enumerate()
+            .find_map(|(i, texture_info)| (texture_info.name == texture).then_some(i));
 
         let positions: Vec<Vec3> = mesh
             .vertices()
             .map(|vertex| map_coords(vertex.position))
-            .map(|v| apply_transform(v, transform))
+            // .map(|v| apply_transform(v, transform))
             .collect();
         let normals: Vec<Vec3> = mesh
             .vertices()
             .map(|vertex| map_coords(vertex.normal))
-            .map(|v| apply_transform(v, normal_transform))
+            // .map(|v| apply_transform(v, normal_transform))
             .collect();
         let uvs: Vec<Vec2> = mesh
             .vertices()
@@ -93,13 +106,21 @@ fn prop_to_meshes(prop: &PropData) -> impl Iterator<Item = CpuMesh> + '_ {
 
         let tangents: Vec<Vec4> = mesh.tangents().map(|tangent| tangent.into()).collect();
 
-        CpuMesh {
+        let geometry = Geometry::Triangles(TriMesh {
             positions: Positions::F32(positions),
+            indices: Default::default(),
             normals: Some(normals),
             uvs: Some(uvs),
-            material_name: Some(texture.into()),
             tangents: Some(tangents),
-            ..Default::default()
+            colors: None,
+        });
+
+        Primitive {
+            name: "".to_string(),
+            transformation: transform,
+            animations: vec![],
+            geometry,
+            material_index,
         }
     })
 }

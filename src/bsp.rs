@@ -1,20 +1,17 @@
 use crate::material::load_material_fallback;
 use crate::prop::load_props;
 use crate::{Error, Loader};
-use cgmath::vec4;
-use std::collections::HashMap;
-use three_d::{CpuMesh, CpuModel, Mat4, Positions, Vec2, Vec3};
-use vbsp::{Bsp, Face, Handle};
+use cgmath::Matrix4;
+use itertools::Itertools;
+use std::collections::{HashMap, HashSet};
+use three_d::{CpuModel, Positions, Vec3};
+use three_d_asset::{Geometry, Primitive, TriMesh};
+use vbsp::{Bsp, Handle};
 
 pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CpuModel>, Error> {
     let (world, bsp) = load_world(data, loader)?;
     let props = load_props(loader, bsp.static_props())?;
     Ok(vec![world, props])
-}
-
-pub fn apply_transform<C: Into<Vec3>>(coord: C, transform: Mat4) -> Vec3 {
-    let coord = coord.into();
-    (transform * vec4(coord.x, coord.y, coord.z, 1.0)).truncate()
 }
 
 pub fn map_coords<C: Into<Vec3>>(vec: C) -> Vec3 {
@@ -29,66 +26,66 @@ pub fn map_coords<C: Into<Vec3>>(vec: C) -> Vec3 {
 // 1 hammer unit is ~1.905cm
 pub const UNIT_SCALE: f32 = 1.0 / (1.905 * 100.0);
 
-fn face_to_mesh(face: &Handle<Face>) -> CpuMesh {
-    let texture = face.texture();
-    let positions = face.vertex_positions().map(map_coords).collect();
-    let uvs = face
-        .vertex_positions()
-        .map(|pos| Vec2 {
-            x: texture.u(pos),
-            y: texture.v(pos),
-        })
-        .collect();
-
-    let mut mesh = CpuMesh {
-        positions: Positions::F32(positions),
-        uvs: Some(uvs),
-        material_name: Some(texture.name().into()),
-        ..Default::default()
-    };
-    mesh.compute_normals();
-    mesh.compute_tangents();
-    mesh
-}
-
 fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel {
-    let mut faces_by_texture: HashMap<&str, Vec<_>> = HashMap::with_capacity(64);
-    for face in model.faces().filter(|face| face.is_visible()) {
-        faces_by_texture
-            .entry(face.texture().name())
-            .or_default()
-            .push(face)
-    }
+    let textures: HashSet<&str> = model.textures().map(|texture| texture.name()).collect();
+    let textures: Vec<&str> = textures.into_iter().collect();
 
-    let geometries = faces_by_texture
-        .values()
+    let faces_by_texture: HashMap<&str, _> = model
+        .faces()
+        .filter(|face| face.is_visible())
+        .map(|face| (face.texture().name(), face))
+        .into_group_map();
+
+    let geometries: Vec<_> = faces_by_texture
+        .into_values()
         .map(|faces| {
-            let mut faces = faces.iter();
-            let first = faces.next().unwrap();
-            let mut mesh = face_to_mesh(first);
-            for face in faces {
-                let face_mesh = face_to_mesh(face);
-                if let Positions::F32(positions) = &mut mesh.positions {
-                    positions.extend_from_slice(&face_mesh.positions.into_f32());
-                }
-                if let Some(uvs) = &mut mesh.uvs {
-                    uvs.extend_from_slice(&face_mesh.uvs.unwrap());
-                }
-            }
+            let positions: Vec<_> = faces
+                .iter()
+                .flat_map(|face| face.vertex_positions())
+                .map(map_coords)
+                .collect();
+
+            let uvs: Vec<_> = faces
+                .iter()
+                .flat_map(|face| {
+                    let texture = face.texture();
+                    face.vertex_positions()
+                        .map(move |position| texture.uv(position))
+                })
+                .map(|uv| uv.into())
+                .collect();
+
+            let mut mesh = TriMesh {
+                positions: Positions::F32(positions),
+                uvs: Some(uvs),
+                ..Default::default()
+            };
             mesh.compute_normals();
-            mesh
+            mesh.compute_tangents();
+
+            let texture = faces.first().unwrap().texture().name();
+            let material_index = textures
+                .iter()
+                .enumerate()
+                .find_map(|(i, tex)| (*tex == texture).then_some(i));
+
+            Primitive {
+                name: "".to_string(),
+                transformation: Matrix4::from_scale(1.0),
+                animations: vec![],
+                geometry: Geometry::Triangles(mesh),
+                material_index,
+            }
         })
         .collect();
 
-    let materials = faces_by_texture
-        .values()
-        .map(|face| {
-            let texture = face.first().unwrap().texture();
-            load_material_fallback(texture.name(), &["".into()], loader)
-        })
+    let materials: Vec<_> = textures
+        .iter()
+        .map(|texture| load_material_fallback(texture, &["".into()], loader))
         .collect();
 
     CpuModel {
+        name: "".to_string(),
         geometries,
         materials,
     }
