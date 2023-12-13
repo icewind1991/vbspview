@@ -85,7 +85,7 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
         .collect();
 
     CpuModel {
-        name: "".to_string(),
+        name: "bsp".to_string(),
         geometries,
         materials,
     }

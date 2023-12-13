@@ -105,14 +105,23 @@ impl<C: Control> Renderer<C> {
         let geometries = self
             .models
             .iter()
-            .flat_map(|model| model.iter())
-            .map(|gm| &gm.geometry);
+            .enumerate()
+            .filter_map(|(i, model)| {
+                if !self.gui.show_bsp && i == 0 {
+                    None
+                } else if !self.gui.show_props && i == 1 {
+                    None
+                } else {
+                    Some(model)
+                }
+            })
+            .flat_map(|model| model.iter());
 
         match self.gui.debug_type {
             DebugType::Normal => target.render_with_material(
                 &NormalMaterial::default(),
                 &self.camera,
-                geometries,
+                geometries.map(|gm| &gm.geometry),
                 lights,
             ),
             DebugType::Depth => {
@@ -125,28 +134,34 @@ impl<C: Control> Renderer<C> {
             DebugType::Orm => target.render_with_material(
                 &ORMMaterial::default(),
                 &self.camera,
-                geometries,
+                geometries.map(|gm| &gm.geometry),
                 lights,
             ),
             DebugType::Position => {
                 let position_material = PositionMaterial::default();
-                target.render_with_material(&position_material, &self.camera, geometries, lights)
+                target.render_with_material(
+                    &position_material,
+                    &self.camera,
+                    geometries.map(|gm| &gm.geometry),
+                    lights,
+                )
             }
             DebugType::Uv => {
                 let uv_material = UVMaterial::default();
-                target.render_with_material(&uv_material, &self.camera, geometries, lights)
+                target.render_with_material(
+                    &uv_material,
+                    &self.camera,
+                    geometries.map(|gm| &gm.geometry),
+                    lights,
+                )
             }
             DebugType::Color => target.render_with_material(
                 &ColorMaterial::default(),
                 &self.camera,
-                geometries,
+                geometries.map(|gm| &gm.geometry),
                 lights,
             ),
-            DebugType::None => target.render(
-                &self.camera,
-                self.models.iter().flat_map(|model| model.iter()),
-                lights,
-            ),
+            DebugType::None => target.render(&self.camera, geometries, lights),
         };
 
         if self.debug_toggle.enabled {

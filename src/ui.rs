@@ -16,6 +16,8 @@ pub enum DebugType {
 
 pub struct DebugUI {
     ui: GUI,
+    pub show_bsp: bool,
+    pub show_props: bool,
     pub shadows_enabled: bool,
     pub directional_intensity: f32,
     pub ambient_intensity: f32,
@@ -28,6 +30,8 @@ impl DebugUI {
     pub fn new(context: &Context) -> Self {
         DebugUI {
             ui: three_d::GUI::new(context),
+            show_bsp: true,
+            show_props: true,
             shadows_enabled: false,
             directional_intensity: 1.0,
             ambient_intensity: 0.2,
@@ -53,6 +57,10 @@ impl DebugUI {
                 SidePanel::left("side_panel").show(gui_context, |ui| {
                     ui.heading("Debug Panel");
                     ui.label("  toggle panel with <`>");
+
+                    ui.label("Visibility options");
+                    ui.checkbox(&mut self.show_bsp, "Map");
+                    ui.checkbox(&mut self.show_props, "Props");
 
                     ui.label("Light options");
                     ui.add(
