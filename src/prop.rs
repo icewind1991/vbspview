@@ -33,13 +33,13 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
         .map(|(prop, model)| {
             let transform =
                 Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
-            Ok::<_, Error>(PropData {
+            PropData {
                 model,
                 transform,
                 skin: prop.skin,
-            })
+            }
         })
-        .collect::<Result<_, _>>()?;
+        .collect();
 
     let materials: HashMap<_, _> = props
         .iter()
