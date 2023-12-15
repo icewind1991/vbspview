@@ -105,7 +105,7 @@ fn prop_to_meshes<'a>(prop: &'a PropData) -> impl Iterator<Item = Primitive> + '
         });
 
         Primitive {
-            name: "".to_string(),
+            name: mesh.model_name.into(),
             transformation: transform,
             animations: vec![],
             geometry,
