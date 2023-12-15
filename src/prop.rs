@@ -1,7 +1,6 @@
 use crate::bsp::map_coords;
 use crate::material::load_material_fallback;
 use crate::{Error, Loader};
-use std::collections::HashMap;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use three_d_asset::{Geometry, Primitive, TriMesh};
 use tracing::{error, warn};
@@ -21,8 +20,8 @@ pub fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
 pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     loader: &Loader,
     props: I,
-) -> Result<CpuModel, Error> {
-    let props: Vec<PropData> = props
+) -> Result<Vec<CpuModel>, Error> {
+    let props = props
         .filter_map(|prop| match load_prop(loader, prop.model()) {
             Ok(model) => Some((prop, model)),
             Err(e) => {
@@ -39,31 +38,25 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
                 transform,
                 skin: prop.skin,
             }
+        });
+
+    props
+        .map(|prop| {
+            let geometries: Vec<_> = prop_to_meshes(&prop).collect();
+            let materials: Vec<_> = prop
+                .model
+                .textures()
+                .iter()
+                .map(|tex| prop_texture_to_material(tex, loader))
+                .collect();
+
+            Ok(CpuModel {
+                name: prop.name.into(),
+                geometries,
+                materials,
+            })
         })
-        .collect();
-
-    let materials: HashMap<_, _> = props
-        .iter()
-        .flat_map(|prop| prop.model.textures())
-        .map(|tex| (tex.name.as_str(), tex))
-        .collect();
-    let materials: Vec<_> = materials.into_values().collect();
-
-    let geometries = props
-        .iter()
-        .flat_map(|prop| prop_to_meshes(prop, materials.as_slice()))
-        .collect();
-
-    let materials: Vec<_> = materials
-        .into_iter()
-        .map(|tex| prop_texture_to_material(tex, loader))
-        .collect();
-
-    Ok(CpuModel {
-        name: "props".into(),
-        geometries,
-        materials,
-    })
+        .collect()
 }
 
 struct PropData<'a> {
@@ -73,10 +66,7 @@ struct PropData<'a> {
     skin: i32,
 }
 
-fn prop_to_meshes<'a>(
-    prop: &'a PropData,
-    textures: &'a [&TextureInfo],
-) -> impl Iterator<Item = Primitive> + 'a {
+fn prop_to_meshes<'a>(prop: &'a PropData) -> impl Iterator<Item = Primitive> + 'a {
     let transform = prop.transform;
     let model = &prop.model;
 
@@ -89,23 +79,15 @@ fn prop_to_meshes<'a>(
     };
 
     model.meshes().map(move |mesh| {
-        let texture = skin
-            .texture(mesh.material_index())
-            .expect("texture out of bounds");
-        let material_index = textures
-            .iter()
-            .enumerate()
-            .find_map(|(i, texture_info)| (texture_info.name == texture).then_some(i));
+        let material_index = skin.texture_index(mesh.material_index());
 
         let positions: Vec<Vec3> = mesh
             .vertices()
             .map(|vertex| map_coords(vertex.position))
-            // .map(|v| apply_transform(v, transform))
             .collect();
         let normals: Vec<Vec3> = mesh
             .vertices()
             .map(|vertex| map_coords(vertex.normal))
-            // .map(|v| apply_transform(v, normal_transform))
             .collect();
         let uvs: Vec<Vec2> = mesh
             .vertices()
@@ -116,11 +98,10 @@ fn prop_to_meshes<'a>(
 
         let geometry = Geometry::Triangles(TriMesh {
             positions: Positions::F32(positions),
-            indices: Default::default(),
             normals: Some(normals),
             uvs: Some(uvs),
             tangents: Some(tangents),
-            colors: None,
+            ..TriMesh::default()
         });
 
         Primitive {

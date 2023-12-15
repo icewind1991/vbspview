@@ -16,8 +16,8 @@ delaunator = "1.0.1"
 itertools = "0.10.5"
 steamlocate = "2.0.0-alpha.0"
 vpk = "0.2.0"
-vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
-#vmdl = { version = "*", path = "../vmdl" }
+#vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
+vmdl = { version = "*", path = "../vmdl" }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing-tree = "0.2.2"

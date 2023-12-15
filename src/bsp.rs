@@ -11,7 +11,10 @@ use vbsp::{Bsp, Handle};
 pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CpuModel>, Error> {
     let (world, bsp) = load_world(data, loader)?;
     let props = load_props(loader, bsp.static_props())?;
-    Ok(vec![world, props])
+    let mut models = Vec::with_capacity(props.len() + 1);
+    models.push(world);
+    models.extend(props.into_iter());
+    Ok(models)
 }
 
 pub fn map_coords<C: Into<Vec3>>(vec: C) -> Vec3 {
