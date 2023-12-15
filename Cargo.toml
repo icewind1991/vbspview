@@ -8,16 +8,16 @@ license = "MIT"
 [dependencies]
 three-d = { version = "0.16.3", features = ["egui-gui"] }
 three-d-asset = { version = "0.6" }
-#vbsp = { version = "0.2.0", git = "https://github.com/icewind1991/vbsp" }
-vbsp = { version = "0.2.0", path = "../bsp" }
+vbsp = { version = "0.2.0", git = "https://github.com/icewind1991/vbsp" }
+#vbsp = { version = "0.2.0", path = "../bsp" }
 miette = { version = "5.5.0", features = ["fancy"] }
 thiserror = "1.0.37"
 delaunator = "1.0.1"
 itertools = "0.10.5"
-steamlocate = "2.0.0-alpha.0"
+steamlocate = "=2.0.0-alpha.0"
 vpk = "0.2.0"
-#vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
-vmdl = { version = "*", path = "../vmdl" }
+vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
+#vmdl = { version = "*", path = "../vmdl" }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing-tree = "0.2.2"
