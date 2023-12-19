@@ -1,5 +1,5 @@
 use crate::bsp::map_coords;
-use crate::material::load_material_fallback;
+use crate::material::{convert_material, load_material_fallback};
 use crate::{Error, Loader};
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use three_d_asset::{Geometry, Primitive, TriMesh};
@@ -115,5 +115,9 @@ fn prop_to_meshes<'a>(prop: &'a PropData) -> impl Iterator<Item = Primitive> + '
 }
 
 fn prop_texture_to_material(texture: &TextureInfo, loader: &Loader) -> CpuMaterial {
-    load_material_fallback(&texture.name, &texture.search_paths, loader)
+    convert_material(load_material_fallback(
+        &texture.name,
+        &texture.search_paths,
+        loader,
+    ))
 }

@@ -1,137 +1,121 @@
 use crate::loader::Loader;
 use crate::Error;
-use std::str::FromStr;
-use steamy_vdf::{Entry, Table};
-use three_d::{CpuMaterial, CpuTexture, TextureData};
+use image::{DynamicImage, GenericImageView};
+use three_d::{CpuMaterial, CpuTexture};
 use three_d_asset::Srgba;
-use tracing::error;
+use tracing::{error, instrument};
+use vmt_parser::from_str;
+use vmt_parser::material::{Material, WaterMaterial};
 use vtf::vtf::VTF;
 
-pub fn load_material_fallback(name: &str, search_dirs: &[String], loader: &Loader) -> CpuMaterial {
+pub fn load_material_fallback(name: &str, search_dirs: &[String], loader: &Loader) -> MaterialData {
     match load_material(name, search_dirs, loader) {
-        Ok(material) => material,
+        Ok(mat) => mat,
         Err(e) => {
-            error!(
-                material = name,
-                error = ?e,
-                "failed to load material, falling back"
-            );
-            CpuMaterial {
-                albedo: Srgba {
-                    r: 255,
-                    g: 0,
-                    b: 255,
-                    a: 255,
-                },
+            error!(error = ?e, material = name, "failed to load material");
+            MaterialData {
                 name: name.into(),
-                ..Default::default()
+                color: [255, 0, 255, 255],
+                ..MaterialData::default()
             }
         }
     }
 }
 
-fn get_path(vmt: &Entry, name: &str) -> Option<String> {
-    Some(vmt.lookup(name)?.as_str()?.replace('\\', "/"))
+#[derive(Default, Debug)]
+pub struct MaterialData {
+    pub name: String,
+    pub path: String,
+    pub color: [u8; 4],
+    pub texture: Option<TextureData>,
+    pub alpha_test: Option<f32>,
+    pub bump_map: Option<TextureData>,
+    pub translucent: bool,
 }
 
+#[derive(Debug)]
+pub struct TextureData {
+    pub name: String,
+    pub image: DynamicImage,
+}
+
+#[instrument(skip(loader))]
 pub fn load_material(
     name: &str,
     search_dirs: &[String],
     loader: &Loader,
-) -> Result<CpuMaterial, Error> {
+) -> Result<MaterialData, Error> {
     let dirs = search_dirs
         .iter()
         .map(|dir| {
             format!(
                 "materials/{}",
-                dir.to_ascii_lowercase().trim_start_matches('/')
+                dir.to_ascii_lowercase().trim_start_matches("/")
             )
         })
         .collect::<Vec<_>>();
     let path = format!("{}.vmt", name.to_ascii_lowercase().trim_end_matches(".vmt"));
-    let raw = loader.load_from_paths(&path, &dirs)?.to_ascii_lowercase();
+    let path = loader
+        .find_in_paths(&path, &dirs)
+        .ok_or(Error::ResourceNotFound(path))?;
+    let raw = loader.load(&path)?;
+    let vdf = String::from_utf8(raw)?;
 
-    let vmt = parse_vdf(&raw)?;
-    let vmt = resolve_vmt_patch(vmt, loader)?;
+    let material = from_str(&vdf).map_err(|e| {
+        let report = miette::ErrReport::new(e);
+        println!("{:?}", report);
+        Error::Other(format!("Failed to load material {}", path))
+    })?;
+    let material = material.resolve(|path| {
+        let data = loader.load(path)?;
+        let vdf = String::from_utf8(data)?;
+        Ok::<_, Error>(vdf)
+    })?;
 
-    let material_type = vmt
-        .keys()
-        .next()
-        .ok_or(Error::Other("empty vmt"))?
-        .to_ascii_lowercase();
-
-    if material_type == "water" {
-        return Ok(CpuMaterial {
-            albedo: Srgba {
-                r: 82,
-                g: 180,
-                b: 217,
-                a: 128,
-            },
+    if let Material::Water(WaterMaterial {
+        base_texture: None, ..
+    }) = &material
+    {
+        return Ok(MaterialData {
+            color: [82, 180, 217, 128],
             name: name.into(),
-            ..Default::default()
+            path,
+            texture: None,
+            bump_map: None,
+            alpha_test: None,
+            translucent: true,
         });
     }
 
-    let table = vmt
-        .values()
-        .next()
-        .cloned()
-        .ok_or(Error::Other("empty vmt"))?;
-    let base_texture = get_path(&table, "$basetexture").ok_or(Error::Other("no $basetexture"))?;
+    let base_texture = material.base_texture();
 
-    let translucent = table
-        .lookup("$translucent")
-        .map(|val| val.as_str() == Some("1"))
-        .unwrap_or_default();
-    let glass = table
-        .lookup("$surfaceprop")
-        .map(|val| val.as_str() == Some("glass"))
-        .unwrap_or_default();
-    let alpha_test = table
-        .lookup("$alphatest")
-        .map(|val| val.as_str() == Some("1"))
-        .unwrap_or_default();
-    let texture = load_texture(
-        base_texture.as_str(),
-        loader,
-        translucent | glass | alpha_test,
-    )?;
+    let translucent = material.translucent();
+    let glass = material.surface_prop() == Some("glass");
+    let alpha_test = material.alpha_test();
+    let texture = load_texture(base_texture, loader)?;
 
-    let alpha_cutout = table
-        .lookup("$alphatestreference")
-        .and_then(Entry::as_str)
-        .and_then(|val| f32::from_str(val).ok())
-        .unwrap_or(1.0);
+    let bump_map = material.bump_map().and_then(|path| {
+        Some(TextureData {
+            image: load_texture(&path, loader).ok()?,
+            name: path.into(),
+        })
+    });
 
-    let bump_map = get_path(&table, "$bumpmap")
-        .map(|path| load_texture(&path, loader, true).ok())
-        .flatten();
-
-    Ok(CpuMaterial {
+    Ok(MaterialData {
+        color: [255; 4],
         name: name.into(),
-        albedo: Srgba::WHITE,
-        albedo_texture: Some(texture),
-        alpha_cutout: alpha_test.then_some(alpha_cutout),
-        normal_texture: bump_map,
-        ..CpuMaterial::default()
+        path,
+        texture: Some(TextureData {
+            name: base_texture.into(),
+            image: texture,
+        }),
+        bump_map,
+        alpha_test,
+        translucent: translucent | glass,
     })
 }
 
-fn parse_vdf(bytes: &[u8]) -> Result<Table, Error> {
-    #[cfg(feature = "dump_materials")]
-    println!("{}", String::from_utf8_lossy(bytes));
-    let mut reader = steamy_vdf::Reader::from(bytes);
-    Table::load(&mut reader).map_err(|e| {
-        error!(
-            source = String::from_utf8_lossy(bytes).to_string(),
-            "failed to parse vmt"
-        );
-        e.into()
-    })
-}
-
-fn load_texture(name: &str, loader: &Loader, alpha: bool) -> Result<CpuTexture, Error> {
+fn load_texture(name: &str, loader: &Loader) -> Result<DynamicImage, Error> {
     let path = format!(
         "materials/{}.vtf",
         name.trim_end_matches(".vtf").trim_start_matches('/')
@@ -139,40 +123,53 @@ fn load_texture(name: &str, loader: &Loader, alpha: bool) -> Result<CpuTexture, 
     let mut raw = loader.load(&path)?;
     let vtf = VTF::read(&mut raw)?;
     let image = vtf.highres_image.decode(0)?;
-    let texture_data = if alpha {
-        TextureData::RgbaU8(image.into_rgba8().pixels().map(|pixel| pixel.0).collect())
-    } else {
-        TextureData::RgbU8(image.into_rgb8().pixels().map(|pixel| pixel.0).collect())
-    };
-    Ok(CpuTexture {
-        name: name.into(),
-        data: texture_data,
-        height: vtf.header.height as u32,
-        width: vtf.header.width as u32,
-        ..CpuTexture::default()
-    })
+    Ok(image)
 }
 
-fn resolve_vmt_patch(vmt: Table, loader: &Loader) -> Result<Table, Error> {
-    if vmt.len() != 1 {
-        panic!("vmt with more than 1 item?");
+pub fn convert_material(material: MaterialData) -> CpuMaterial {
+    CpuMaterial {
+        albedo: Srgba::new(
+            material.color[0],
+            material.color[1],
+            material.color[2],
+            material.color[3],
+        ),
+        name: material.name,
+        albedo_texture: material
+            .texture
+            .map(|tex| convert_texture(tex, material.translucent | material.alpha_test.is_some())),
+        alpha_cutout: material.alpha_test,
+        normal_texture: material.bump_map.map(|tex| convert_texture(tex, true)),
+        ..CpuMaterial::default()
     }
-    if let Some(Entry::Table(patch)) = vmt.get("patch") {
-        let include = patch
-            .get("include")
-            .ok_or(Error::Other("no include in patch"))?
-            .as_str()
-            .ok_or(Error::Other("include is not a string"))?;
-        let _replace = patch
-            .get("replace")
-            .ok_or(Error::Other("no replace in patch"))?
-            .as_table()
-            .ok_or(Error::Other("replace is not a table"))?;
-        let included_raw = loader.load(include)?.to_ascii_lowercase();
-
-        // todo actually patch
-        parse_vdf(&included_raw)
+}
+pub fn convert_texture(texture: TextureData, keep_alpha: bool) -> CpuTexture {
+    let width = texture.image.width();
+    let height = texture.image.height();
+    let data = if keep_alpha {
+        three_d_asset::TextureData::RgbaU8(
+            texture
+                .image
+                .into_rgba8()
+                .pixels()
+                .map(|pixel| pixel.0)
+                .collect(),
+        )
     } else {
-        Ok(vmt)
+        three_d_asset::TextureData::RgbU8(
+            texture
+                .image
+                .into_rgb8()
+                .pixels()
+                .map(|pixel| pixel.0)
+                .collect(),
+        )
+    };
+    CpuTexture {
+        data,
+        name: texture.name,
+        height,
+        width,
+        ..CpuTexture::default()
     }
 }

@@ -1,4 +1,4 @@
-use crate::material::load_material_fallback;
+use crate::material::{convert_material, load_material_fallback};
 use crate::prop::load_props;
 use crate::{Error, Loader};
 use cgmath::Matrix4;
@@ -85,6 +85,7 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
     let materials: Vec<_> = textures
         .iter()
         .map(|texture| load_material_fallback(texture, &["".into()], loader))
+        .map(convert_material)
         .collect();
 
     CpuModel {
@@ -99,7 +100,10 @@ fn load_world(data: &[u8], loader: &mut Loader) -> Result<(CpuModel, Bsp), Error
 
     loader.set_pack(bsp.pack.clone());
 
-    let world_model = bsp.models().next().ok_or(Error::Other("No world model"))?;
+    let world_model = bsp
+        .models()
+        .next()
+        .ok_or(Error::Other("No world model".into()))?;
 
     Ok((model_to_model(world_model, loader), bsp))
 }

@@ -1,10 +1,9 @@
 use crate::Error;
-use std::env::var;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::PathBuf;
 use steamlocate::SteamDir;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use vbsp::Packfile;
 use vpk::VPK;
 
@@ -25,33 +24,16 @@ impl Debug for Loader {
 
 impl Loader {
     pub fn new() -> Result<Self, Error> {
-        Self::with_opt_pack(None)
-    }
-
-    #[allow(dead_code)]
-    pub fn with_pak(pack: Packfile) -> Result<Self, Error> {
-        Self::with_opt_pack(Some(pack))
-    }
-
-    pub fn with_opt_pack(pack: Option<Packfile>) -> Result<Self, Error> {
-        let tf2_dir = match var("TF_DIR") {
-            Ok(dir) => PathBuf::from(dir),
-            Err(_) => SteamDir::locate()
-                .ok_or("Can't find steam directory")?
-                .app(&440)
-                .ok_or("Can't find tf2 directory")?
-                .path
-                .clone(),
-        };
-        let tf_dir = tf2_dir.join("tf");
-        let vpk_dirs = [tf_dir.clone(), tf2_dir.join("hl2")];
-
+        let tf_dir = SteamDir::locate()
+            .ok_or("Can't find steam directory")?
+            .app(&440)
+            .ok_or("Can't find tf2 directory")?
+            .path
+            .join("tf");
         let download = tf_dir.join("download");
-        let vpks = vpk_dirs
-            .iter()
-            .flat_map(|dir| dir.read_dir())
-            .flatten()
-            .flatten()
+        let vpks = tf_dir
+            .read_dir()?
+            .filter_map(|item| item.ok())
             .filter_map(|item| Some(item.path().to_str()?.to_string()))
             .filter(|path| path.ends_with("dir.vpk"))
             .map(|path| vpk::from_path(&path))
@@ -59,15 +41,41 @@ impl Loader {
             .collect();
 
         Ok(Loader {
-            pack,
             tf_dir,
             download,
             vpks,
+            pack: None,
         })
     }
 
     pub fn set_pack(&mut self, pack: Packfile) {
         self.pack = Some(pack);
+    }
+
+    #[tracing::instrument]
+    pub fn exists(&self, name: &str) -> bool {
+        debug!("loading {}", name);
+        if name.ends_with("bsp") {
+            let path = self.tf_dir.join(name);
+            if path.exists() {
+                return true;
+            }
+            let path = self.download.join(name);
+            if path.exists() {
+                return true;
+            }
+        }
+        for vpk in self.vpks.iter() {
+            if vpk.tree.contains_key(name) {
+                return true;
+            }
+        }
+        if let Some(pack) = &self.pack {
+            if let Some(_) = pack.get(name).ok().flatten() {
+                return true;
+            }
+        }
+        false
     }
 
     #[tracing::instrument]
@@ -102,13 +110,13 @@ impl Loader {
         Err(Error::ResourceNotFound(name.to_string()))
     }
 
-    pub fn load_from_paths(&self, name: &str, paths: &[String]) -> Result<Vec<u8>, Error> {
+    pub fn find_in_paths(&self, name: &str, paths: &[String]) -> Option<String> {
         for path in paths {
-            if let Ok(data) = self.load(&format!("{}{}", path, name)) {
-                return Ok(data);
+            let full_path = format!("{}{}", path, name);
+            if self.exists(&full_path) {
+                return Some(full_path);
             }
         }
-        error!("Failed to find {} in vpk paths: {}", name, paths.join(", "));
-        Err(Error::ResourceNotFound(name.to_string()))
+        None
     }
 }

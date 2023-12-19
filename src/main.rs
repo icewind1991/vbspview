@@ -23,6 +23,7 @@ use thiserror::Error;
 use three_d::*;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use tracing_tree::HierarchicalLayer;
+use vmt_parser::VdfError;
 
 /// View a demo file
 #[derive(Parser, Debug)]
@@ -47,13 +48,13 @@ pub enum Error {
     #[error(transparent)]
     Vtf(#[from] vtf::Error),
     #[error(transparent)]
-    Vdf(#[from] steamy_vdf::Error),
+    Vdf(#[from] VdfError),
     #[error(transparent)]
     Mdl(#[from] vmdl::ModelError),
     #[error(transparent)]
     Demo(#[from] tf_demo_parser::ParseError),
     #[error("{0}")]
-    Other(&'static str),
+    Other(String),
     #[error(transparent)]
     Window(#[from] WindowError),
     #[error(transparent)]
@@ -66,7 +67,7 @@ pub enum Error {
 
 impl From<&'static str> for Error {
     fn from(e: &'static str) -> Self {
-        Error::Other(e)
+        Error::Other(e.into())
     }
 }
 

@@ -6,7 +6,8 @@ authors = ["Robin Appelman <robin@icewind.nl>"]
 license = "MIT"
 
 [dependencies]
-three-d = { version = "0.16.3", features = ["egui-gui"] }
+#three-d = { version = "0.16.3", features = ["egui-gui"] }
+three-d = { version = "0.16.3", features = ["egui-gui"], path = "../rust/three-d" }
 three-d-asset = { version = "0.6" }
 vbsp = { version = "0.2.0", git = "https://github.com/icewind1991/vbsp" }
 #vbsp = { version = "0.2.0", path = "../bsp" }
@@ -27,7 +28,8 @@ steamid-ng = "1.0.0"
 clap = { version = "4.0.29", features = ["derive"] }
 splines = { version = "4.1.1", features = ["cgmath"] }
 vtf = "0.1.6"
-steamy-vdf = { version = "0.3.0", git = "https://github.com/icewind1991/steamy", branch = "nom7" }
+vmt-parser = { version = "0.1", git = "https://github.com/icewind1991/vmt-parser" }
+image = "0.23.14"
 
 [profile.dev.package."*"]
 opt-level = 2
