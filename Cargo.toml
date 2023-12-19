@@ -9,8 +9,8 @@ license = "MIT"
 #three-d = { version = "0.16.3", features = ["egui-gui"] }
 three-d = { version = "0.16.3", features = ["egui-gui"], path = "../rust/three-d" }
 three-d-asset = { version = "0.6" }
-vbsp = { version = "0.2.0", git = "https://github.com/icewind1991/vbsp" }
-#vbsp = { version = "0.2.0", path = "../bsp" }
+vbsp = { version = "0.3.0", git = "https://github.com/icewind1991/vbsp" }
+#vbsp = { version = "0.3.0", path = "../bsp" }
 miette = { version = "5.5.0", features = ["fancy"] }
 thiserror = "1.0.37"
 delaunator = "1.0.1"

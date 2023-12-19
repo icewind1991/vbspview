@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::PathBuf;
 use steamlocate::SteamDir;
-use tracing::{debug, info};
+use tracing::debug;
 use vbsp::Packfile;
 use vpk::VPK;
 
@@ -24,15 +24,20 @@ impl Debug for Loader {
 
 impl Loader {
     pub fn new() -> Result<Self, Error> {
-        let tf_dir = SteamDir::locate()
+        let tf2_dir = SteamDir::locate()
             .ok_or("Can't find steam directory")?
             .app(&440)
             .ok_or("Can't find tf2 directory")?
             .path
-            .join("tf");
+            .clone();
+
+        let tf_dir = tf2_dir.join("tf");
+        let hl_dir = tf2_dir.join("hl2");
         let download = tf_dir.join("download");
+
         let vpks = tf_dir
             .read_dir()?
+            .chain(hl_dir.read_dir()?)
             .filter_map(|item| item.ok())
             .filter_map(|item| Some(item.path().to_str()?.to_string()))
             .filter(|path| path.ends_with("dir.vpk"))
@@ -106,7 +111,6 @@ impl Loader {
                 return Ok(data);
             }
         }
-        info!("Failed to find {} in vpk", name);
         Err(Error::ResourceNotFound(name.to_string()))
     }
 

@@ -2636,8 +2636,8 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
 name = "vbsp"
-version = "0.2.0"
-source = "git+https://github.com/icewind1991/vbsp#160370b5f835e1671bc6eb1b8ee91474d9f1927e"
+version = "0.3.0"
+source = "git+https://github.com/icewind1991/vbsp#7a491f86272a30a7022aa96c8ff44291bf57238e"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -2657,7 +2657,7 @@ dependencies = [
 [[package]]
 name = "vbsp-derive"
 version = "0.1.0"
-source = "git+https://github.com/icewind1991/vbsp#160370b5f835e1671bc6eb1b8ee91474d9f1927e"
+source = "git+https://github.com/icewind1991/vbsp#7a491f86272a30a7022aa96c8ff44291bf57238e"
 dependencies = [
  "merge",
  "proc-macro2",
@@ -2696,7 +2696,7 @@ dependencies = [
 [[package]]
 name = "vdf-reader"
 version = "0.1.0"
-source = "git+https://github.com/icewind1991/vdf-reader#d14f22d1bc97cd57c35585b9545c1491f32189bf"
+source = "git+https://github.com/icewind1991/vdf-reader#63b3bdbefdb97d7ea20858697702a8530b541e70"
 dependencies = [
  "logos",
  "miette",
@@ -2735,7 +2735,7 @@ dependencies = [
 [[package]]
 name = "vmt-parser"
 version = "0.1.0"
-source = "git+https://github.com/icewind1991/vmt-parser#8f31c601e56624482b541849f099ff233bb3e2b8"
+source = "git+https://github.com/icewind1991/vmt-parser#105afbc9550178c25143695091ab10ff869b5df6"
 dependencies = [
  "miette",
  "serde",
