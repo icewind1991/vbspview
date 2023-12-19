@@ -108,9 +108,7 @@ impl<C: Control> Renderer<C> {
             .iter()
             .enumerate()
             .filter_map(|(i, model)| {
-                if !self.gui.show_bsp && i == 0 {
-                    None
-                } else if !self.gui.show_props && i > 0 {
+                if (!self.gui.show_bsp && i == 0) || (!self.gui.show_props && i > 0) {
                     None
                 } else {
                     Some(model)

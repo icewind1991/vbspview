@@ -13,7 +13,7 @@ pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CpuModel>, Error
     let props = load_props(loader, bsp.static_props())?;
     let mut models = Vec::with_capacity(props.len() + 1);
     models.push(world);
-    models.extend(props.into_iter());
+    models.extend(props);
     Ok(models)
 }
 

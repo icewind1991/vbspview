@@ -50,7 +50,7 @@ pub fn load_material(
         .map(|dir| {
             format!(
                 "materials/{}",
-                dir.to_ascii_lowercase().trim_start_matches("/")
+                dir.to_ascii_lowercase().trim_start_matches('/')
             )
         })
         .collect::<Vec<_>>();
@@ -96,7 +96,7 @@ pub fn load_material(
 
     let bump_map = material.bump_map().and_then(|path| {
         Some(TextureData {
-            image: load_texture(&path, loader).ok()?,
+            image: load_texture(path, loader).ok()?,
             name: path.into(),
         })
     });

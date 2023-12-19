@@ -71,7 +71,7 @@ impl Loader {
             }
         }
         if let Some(pack) = &self.pack {
-            if let Some(_) = pack.get(name).ok().flatten() {
+            if pack.get(name).ok().flatten().is_some() {
                 return true;
             }
         }
