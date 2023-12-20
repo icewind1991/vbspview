@@ -1871,9 +1871,9 @@ checksum = "8afb450f006bf6385ca15ef45d71d2288452bc3683ce2e2cacc0d18e4be60b58"
 
 [[package]]
 name = "pkg-config"
-version = "0.3.27"
+version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
+checksum = "69d3587f8a9e599cc7ec2c00e331f71c4e69a5f9a4b8a6efd5b07466b9736f9a"
 
 [[package]]
 name = "png"
@@ -2466,9 +2466,9 @@ dependencies = [
 
 [[package]]
 name = "tf-asset-loader"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d19874714b7454f34d6142f9a2e2521b6e48ff4b3929cbac7acc72f161baf7bf"
+checksum = "8b1d0b394de3284708b0e78c1a91e420219d425c14bbf1276c23f97a2e96b123"
 dependencies = [
  "steamlocate",
  "thiserror",
@@ -2797,8 +2797,8 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
 name = "vbsp"
-version = "0.3.0"
-source = "git+https://github.com/icewind1991/vbsp#7a491f86272a30a7022aa96c8ff44291bf57238e"
+version = "0.4.0"
+source = "git+https://github.com/icewind1991/vbsp#dde4ec2a83ef0acdbcf4c3003573701c3d9ecf64"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -2818,7 +2818,7 @@ dependencies = [
 [[package]]
 name = "vbsp-derive"
 version = "0.1.0"
-source = "git+https://github.com/icewind1991/vbsp#7a491f86272a30a7022aa96c8ff44291bf57238e"
+source = "git+https://github.com/icewind1991/vbsp#dde4ec2a83ef0acdbcf4c3003573701c3d9ecf64"
 dependencies = [
  "merge",
  "proc-macro2",

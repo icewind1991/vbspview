@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use tf_asset_loader::Loader;
 use three_d::{CpuModel, Positions, Vec3};
 use three_d_asset::{Geometry, Primitive, TriMesh};
-use vbsp::{Bsp, Handle};
+use vbsp::{Bsp, Entity, Handle, Vector};
 
 pub fn load_map(data: &[u8], loader: &mut Loader, props: bool) -> Result<Vec<CpuModel>, Error> {
     let (world, bsp) = load_world(data, loader)?;
@@ -32,14 +32,19 @@ pub fn map_coords<C: Into<Vec3>>(vec: C) -> Vec3 {
 // 1 hammer unit is ~1.905cm
 pub const UNIT_SCALE: f32 = 1.0 / (1.905 * 100.0);
 
-fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel {
-    let textures: HashSet<&str> = model.textures().map(|texture| texture.name()).collect();
+fn model_to_model(models: &[(Handle<vbsp::data::Model>, Vector)], loader: &Loader) -> CpuModel {
+    let textures: HashSet<&str> = models
+        .iter()
+        .flat_map(|(model, _)| model.textures())
+        .map(|texture| texture.name())
+        .collect();
     let textures: Vec<&str> = textures.into_iter().collect();
 
-    let faces_by_texture: HashMap<&str, _> = model
-        .faces()
-        .filter(|face| face.is_visible())
-        .map(|face| (face.texture().name(), face))
+    let faces_by_texture: HashMap<&str, _> = models
+        .iter()
+        .flat_map(|(model, origin)| model.faces().map(|face| (face, *origin)))
+        .filter(|(face, _)| face.is_visible())
+        .map(|(face, origin)| (face.texture().name(), (face, origin)))
         .into_group_map();
 
     let geometries: Vec<_> = faces_by_texture
@@ -47,13 +52,13 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
         .map(|faces| {
             let positions: Vec<_> = faces
                 .iter()
-                .flat_map(|face| face.vertex_positions())
+                .flat_map(|(face, origin)| face.vertex_positions().map(|pos| pos + *origin))
                 .map(map_coords)
                 .collect();
 
             let uvs: Vec<_> = faces
                 .iter()
-                .flat_map(|face| {
+                .flat_map(|(face, _)| {
                     let texture = face.texture();
                     face.vertex_positions()
                         .map(move |position| texture.uv(position))
@@ -69,7 +74,7 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
             mesh.compute_normals();
             mesh.compute_tangents();
 
-            let texture = faces.first().unwrap().texture().name();
+            let texture = faces.first().unwrap().0.texture().name();
             let material_index = textures
                 .iter()
                 .enumerate()
@@ -108,5 +113,29 @@ fn load_world(data: &[u8], loader: &mut Loader) -> Result<(CpuModel, Bsp), Error
         .next()
         .ok_or(Error::Other("No world model".into()))?;
 
-    Ok((model_to_model(world_model, loader), bsp))
+    let mut models: Vec<_> = bsp
+        .entities
+        .iter()
+        .flat_map(|ent| ent.parse())
+        .filter_map(|ent| match ent {
+            Entity::Brush(ent)
+            | Entity::BrushIllusionary(ent)
+            | Entity::BrushWall(ent)
+            | Entity::BrushWallToggle(ent) => Some(ent),
+            _ => None,
+        })
+        .flat_map(|brush| Some((brush.model[1..].parse::<usize>().ok()?, brush.origin)))
+        .flat_map(|(index, origin)| Some((bsp.models().nth(index)?, origin)))
+        .collect();
+    models.push((
+        world_model,
+        Vector {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+    ));
+
+    let world_model = model_to_model(&models, loader);
+    Ok((world_model, bsp))
 }
