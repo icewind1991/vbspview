@@ -30,8 +30,11 @@ use vmt_parser::VdfError;
 struct Args {
     /// Path of the demo or map file
     path: String,
-    /// Name of the player to follow
+    /// Name of the player to follow, when using a demo file
     player: Option<String>,
+    /// Disable loading and showing props in the map
+    #[arg(long)]
+    no_props: bool,
 }
 
 #[derive(Debug, Error)]
@@ -101,13 +104,13 @@ fn main() -> Result<(), Error> {
             .load(&format!("maps/{}.bsp", demo.map))?
             .ok_or(Error::ResourceNotFound(demo.map.clone()))?;
 
-        let models = load_map(&map, &mut loader)?;
+        let models = load_map(&map, &mut loader, !args.no_props)?;
         play(window, DemoCamera::new(demo), models)
     } else {
         let mut loader = Loader::new()?;
         let map = fs::read(args.path)?;
 
-        let models = load_map(&map, &mut loader)?;
+        let models = load_map(&map, &mut loader, !args.no_props)?;
         play(window, FirstPerson::new(0.1), models)
     }
 }

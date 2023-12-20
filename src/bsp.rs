@@ -9,12 +9,14 @@ use three_d::{CpuModel, Positions, Vec3};
 use three_d_asset::{Geometry, Primitive, TriMesh};
 use vbsp::{Bsp, Handle};
 
-pub fn load_map(data: &[u8], loader: &mut Loader) -> Result<Vec<CpuModel>, Error> {
+pub fn load_map(data: &[u8], loader: &mut Loader, props: bool) -> Result<Vec<CpuModel>, Error> {
     let (world, bsp) = load_world(data, loader)?;
-    let props = load_props(loader, bsp.static_props())?;
-    let mut models = Vec::with_capacity(props.len() + 1);
+    let mut models = Vec::with_capacity(bsp.static_props().count() + 1);
     models.push(world);
-    models.extend(props);
+    if props {
+        let props = load_props(loader, bsp.static_props())?;
+        models.extend(props);
+    }
     Ok(models)
 }
 
