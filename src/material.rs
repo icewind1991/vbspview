@@ -1,6 +1,6 @@
-use crate::loader::Loader;
 use crate::Error;
 use image::{DynamicImage, GenericImageView};
+use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuTexture};
 use three_d_asset::Srgba;
 use tracing::{error, instrument};
@@ -58,7 +58,9 @@ pub fn load_material(
     let path = loader
         .find_in_paths(&path, &dirs)
         .ok_or(Error::ResourceNotFound(path))?;
-    let raw = loader.load(&path)?;
+    let raw = loader
+        .load(&path)?
+        .ok_or_else(|| Error::ResourceNotFound(path.clone()))?;
     let vdf = String::from_utf8(raw)?;
 
     let material = from_str(&vdf).map_err(|e| {
@@ -67,7 +69,9 @@ pub fn load_material(
         Error::Other(format!("Failed to load material {}", path))
     })?;
     let material = material.resolve(|path| {
-        let data = loader.load(path)?;
+        let data = loader
+            .load(path)?
+            .ok_or(Error::ResourceNotFound(path.into()))?;
         let vdf = String::from_utf8(data)?;
         Ok::<_, Error>(vdf)
     })?;
@@ -120,7 +124,7 @@ fn load_texture(name: &str, loader: &Loader) -> Result<DynamicImage, Error> {
         "materials/{}.vtf",
         name.trim_end_matches(".vtf").trim_start_matches('/')
     );
-    let mut raw = loader.load(&path)?;
+    let mut raw = loader.load(&path)?.ok_or(Error::ResourceNotFound(path))?;
     let vtf = VTF::read(&mut raw)?;
     let image = vtf.highres_image.decode(0)?;
     Ok(image)

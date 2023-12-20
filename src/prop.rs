@@ -1,6 +1,7 @@
 use crate::bsp::map_coords;
 use crate::material::{convert_material, load_material_fallback};
-use crate::{Error, Loader};
+use crate::Error;
+use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use three_d_asset::{Geometry, Primitive, TriMesh};
 use tracing::{error, warn};
@@ -11,9 +12,14 @@ use vmdl::vvd::Vvd;
 
 #[tracing::instrument(skip(loader))]
 pub fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
-    let mdl = Mdl::read(&loader.load(name)?)?;
-    let vtx = Vtx::read(&loader.load(&name.replace(".mdl", ".dx90.vtx"))?)?;
-    let vvd = Vvd::read(&loader.load(&name.replace(".mdl", ".vvd"))?)?;
+    let load = |name: &str| -> Result<Vec<u8>, Error> {
+        loader
+            .load(name)?
+            .ok_or(Error::ResourceNotFound(name.into()))
+    };
+    let mdl = Mdl::read(&load(name)?)?;
+    let vtx = Vtx::read(&load(&name.replace(".mdl", ".dx90.vtx"))?)?;
+    let vvd = Vvd::read(&load(&name.replace(".mdl", ".vvd"))?)?;
 
     Ok(vmdl::Model::from_parts(mdl, vtx, vvd))
 }

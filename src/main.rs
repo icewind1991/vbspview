@@ -1,7 +1,6 @@
 mod bsp;
 mod control;
 mod demo;
-mod loader;
 mod material;
 mod prop;
 mod renderer;
@@ -11,6 +10,7 @@ mod wrapping;
 use clap::Parser;
 use std::fs;
 use std::string::FromUtf8Error;
+use tf_asset_loader::{Loader, LoaderError};
 
 use crate::bsp::load_map;
 use crate::control::{Control, DemoCamera};
@@ -18,7 +18,6 @@ use crate::demo::DemoInfo;
 use crate::renderer::Renderer;
 use crate::ui::DebugUI;
 use control::FirstPerson;
-use loader::Loader;
 use thiserror::Error;
 use three_d::*;
 use tracing_subscriber::{prelude::*, EnvFilter};
@@ -44,8 +43,6 @@ pub enum Error {
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]
-    Vpk(#[from] vpk::Error),
-    #[error(transparent)]
     Vtf(#[from] vtf::Error),
     #[error(transparent)]
     Vdf(#[from] VdfError),
@@ -61,6 +58,8 @@ pub enum Error {
     Render(#[from] RendererError),
     #[error(transparent)]
     String(#[from] FromUtf8Error),
+    #[error(transparent)]
+    Loader(#[from] LoaderError),
     #[error("resource {0} not found in vpks or pack")]
     ResourceNotFound(String),
 }
@@ -98,7 +97,9 @@ fn main() -> Result<(), Error> {
     if args.path.ends_with(".dem") {
         let demo = DemoInfo::new(args.path, &args.player.unwrap_or_default())?;
         let mut loader = Loader::new()?;
-        let map = loader.load(&format!("maps/{}.bsp", demo.map))?;
+        let map = loader
+            .load(&format!("maps/{}.bsp", demo.map))?
+            .ok_or(Error::ResourceNotFound(demo.map.clone()))?;
 
         let models = load_map(&map, &mut loader)?;
         play(window, DemoCamera::new(demo), models)

@@ -1,12 +1,11 @@
 use crate::control::{Control, DebugToggle};
 use crate::ui::DebugType;
 use crate::DebugUI;
-use std::sync::Arc;
 use three_d::*;
 
 pub struct Renderer<C: Control> {
     gui: DebugUI,
-    pub models: Vec<Model<Arc<PhysicalMaterial>>>,
+    pub models: Vec<Model<PhysicalMaterial>>,
     ambient_lights: Vec<AmbientLight>,
     directional_lights: Vec<DirectionalLight>,
     pub context: Context,

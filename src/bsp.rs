@@ -1,9 +1,10 @@
 use crate::material::{convert_material, load_material_fallback};
 use crate::prop::load_props;
-use crate::{Error, Loader};
+use crate::Error;
 use cgmath::Matrix4;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+use tf_asset_loader::Loader;
 use three_d::{CpuModel, Positions, Vec3};
 use three_d_asset::{Geometry, Primitive, TriMesh};
 use vbsp::{Bsp, Handle};
@@ -98,7 +99,7 @@ fn model_to_model(model: Handle<vbsp::data::Model>, loader: &Loader) -> CpuModel
 fn load_world(data: &[u8], loader: &mut Loader) -> Result<(CpuModel, Bsp), Error> {
     let bsp = Bsp::read(data)?;
 
-    loader.set_pack(bsp.pack.clone());
+    loader.add_source(bsp.pack.clone());
 
     let world_model = bsp
         .models()
