@@ -1,20 +1,22 @@
 use crate::Error;
 use image::{DynamicImage, GenericImageView};
+use std::cell::RefCell;
 use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuTexture};
 use three_d_asset::Srgba;
 use tracing::{error, instrument};
+use vmdl::mdl::TextureInfo;
 use vmt_parser::from_str;
 use vmt_parser::material::{Material, WaterMaterial};
 use vtf::vtf::VTF;
 
-pub fn load_material_fallback(name: &str, search_dirs: &[String], loader: &Loader) -> MaterialData {
-    match load_material(name, search_dirs, loader) {
+pub fn load_material_fallback(name: &str, loader: &Loader) -> MaterialData {
+    match load_material(name, loader) {
         Ok(mat) => mat,
         Err(e) => {
             error!(error = ?e, material = name, "failed to load material");
             MaterialData {
-                name: name.into(),
+                path: name.into(),
                 color: [255, 0, 255, 255],
                 ..MaterialData::default()
             }
@@ -24,7 +26,6 @@ pub fn load_material_fallback(name: &str, search_dirs: &[String], loader: &Loade
 
 #[derive(Default, Debug)]
 pub struct MaterialData {
-    pub name: String,
     pub path: String,
     pub color: [u8; 4],
     pub texture: Option<TextureData>,
@@ -40,24 +41,15 @@ pub struct TextureData {
 }
 
 #[instrument(skip(loader))]
-pub fn load_material(
-    name: &str,
-    search_dirs: &[String],
-    loader: &Loader,
-) -> Result<MaterialData, Error> {
-    let dirs = search_dirs
-        .iter()
-        .map(|dir| {
-            format!(
-                "materials/{}",
-                dir.to_ascii_lowercase().trim_start_matches('/')
-            )
-        })
-        .collect::<Vec<_>>();
-    let path = format!("{}.vmt", name.to_ascii_lowercase().trim_end_matches(".vmt"));
-    let path = loader
-        .find_in_paths(&path, &dirs)
-        .ok_or(Error::ResourceNotFound(path))?;
+pub fn load_material(path: &str, loader: &Loader) -> Result<MaterialData, Error> {
+    let path = if path.starts_with("materials/") {
+        path.to_string()
+    } else {
+        format!(
+            "materials/{}.vmt",
+            path.to_ascii_lowercase().trim_end_matches(".vmt")
+        )
+    };
     let raw = loader
         .load(&path)?
         .ok_or_else(|| Error::ResourceNotFound(path.clone()))?;
@@ -82,7 +74,6 @@ pub fn load_material(
     {
         return Ok(MaterialData {
             color: [82, 180, 217, 128],
-            name: name.into(),
             path,
             texture: None,
             bump_map: None,
@@ -107,7 +98,6 @@ pub fn load_material(
 
     Ok(MaterialData {
         color: [255; 4],
-        name: name.into(),
         path,
         texture: Some(TextureData {
             name: base_texture.into(),
@@ -138,7 +128,7 @@ pub fn convert_material(material: MaterialData) -> CpuMaterial {
             material.color[2],
             material.color[3],
         ),
-        name: material.name,
+        name: material.path,
         albedo_texture: material
             .texture
             .map(|tex| convert_texture(tex, material.translucent | material.alpha_test.is_some())),
@@ -175,5 +165,65 @@ pub fn convert_texture(texture: TextureData, keep_alpha: bool) -> CpuTexture {
         height,
         width,
         ..CpuTexture::default()
+    }
+}
+
+#[derive(Debug)]
+pub struct MaterialSet<'a> {
+    loader: &'a Loader,
+    materials: RefCell<Vec<String>>,
+}
+
+impl<'s> MaterialSet<'s> {
+    pub fn new(loader: &'s Loader) -> Self {
+        MaterialSet {
+            loader,
+            materials: RefCell::default(),
+        }
+    }
+
+    pub fn get_index(&self, material: &TextureInfo) -> usize {
+        let search_path = material
+            .search_paths
+            .iter()
+            .map(|dir| {
+                format!(
+                    "materials/{}",
+                    dir.to_ascii_lowercase().trim_start_matches('/')
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let material = format!(
+            "{}.vmt",
+            material.name.to_ascii_lowercase().trim_end_matches(".vmt")
+        );
+
+        let material = if search_path.is_empty() {
+            material.to_string()
+        } else {
+            self.loader
+                .find_in_paths(&material, &search_path)
+                .unwrap_or(material.into())
+        };
+
+        let mut materials = self.materials.borrow_mut();
+
+        match materials
+            .iter()
+            .enumerate()
+            .find_map(|(i, name)| (*name == material).then_some(i))
+        {
+            Some(i) => i,
+            None => {
+                let i = materials.len();
+                materials.push(material);
+                i
+            }
+        }
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item = String> {
+        self.materials.into_inner().into_iter()
     }
 }

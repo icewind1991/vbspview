@@ -1,12 +1,12 @@
 use crate::bsp::map_coords;
-use crate::material::{convert_material, load_material_fallback};
+use crate::material::{convert_material, load_material_fallback, MaterialSet};
 use crate::Error;
 use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use three_d_asset::{Geometry, Primitive, TriMesh};
 use tracing::{error, warn};
 use vbsp::{Handle, StaticPropLump};
-use vmdl::mdl::{Mdl, TextureInfo};
+use vmdl::mdl::Mdl;
 use vmdl::vtx::Vtx;
 use vmdl::vvd::Vvd;
 
@@ -28,7 +28,7 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     props: I,
     show_textures: bool,
 ) -> Result<Vec<CpuModel>, Error> {
-    let props = props
+    let props: Vec<_> = props
         .filter_map(|prop| match load_prop(loader, prop.model()) {
             Ok(model) => Some((prop, model)),
             Err(e) => {
@@ -45,28 +45,26 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
                 transform,
                 skin: prop.skin,
             }
-        });
-
-    props
-        .map(|prop| {
-            let geometries: Vec<_> = prop_to_meshes(&prop, show_textures).collect();
-            let materials: Vec<_> = if show_textures {
-                prop.model
-                    .textures()
-                    .iter()
-                    .map(|tex| prop_texture_to_material(tex, loader))
-                    .collect()
-            } else {
-                Vec::new()
-            };
-
-            Ok(CpuModel {
-                name: prop.name.into(),
-                geometries,
-                materials,
-            })
         })
-        .collect()
+        .collect();
+
+    let used_materials = MaterialSet::new(loader);
+
+    let geometries = props
+        .iter()
+        .flat_map(|prop| prop_to_meshes(prop, &used_materials, show_textures))
+        .collect();
+
+    let materials = used_materials
+        .into_iter()
+        .map(|mat| prop_texture_to_material(&mat, loader))
+        .collect();
+
+    Ok(vec![CpuModel {
+        name: "props".into(),
+        geometries,
+        materials,
+    }])
 }
 
 struct PropData<'a> {
@@ -78,6 +76,7 @@ struct PropData<'a> {
 
 fn prop_to_meshes<'a>(
     prop: &'a PropData,
+    used_materials: &'a MaterialSet<'a>,
     show_textures: bool,
 ) -> impl Iterator<Item = Primitive> + 'a {
     let transform = prop.transform;
@@ -93,7 +92,8 @@ fn prop_to_meshes<'a>(
 
     model.meshes().map(move |mesh| {
         let material_index = if show_textures {
-            skin.texture_index(mesh.material_index())
+            skin.texture_info(mesh.material_index())
+                .map(|mat| used_materials.get_index(mat))
         } else {
             None
         };
@@ -131,10 +131,6 @@ fn prop_to_meshes<'a>(
     })
 }
 
-fn prop_texture_to_material(texture: &TextureInfo, loader: &Loader) -> CpuMaterial {
-    convert_material(load_material_fallback(
-        &texture.name,
-        &texture.search_paths,
-        loader,
-    ))
+fn prop_texture_to_material(texture: &str, loader: &Loader) -> CpuMaterial {
+    convert_material(load_material_fallback(&texture, loader))
 }

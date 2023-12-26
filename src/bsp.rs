@@ -105,7 +105,7 @@ fn model_to_model(
 
     let materials: Vec<_> = textures
         .iter()
-        .map(|texture| load_material_fallback(texture, &["".into()], loader))
+        .map(|texture| load_material_fallback(texture, loader))
         .map(convert_material)
         .collect();
 
