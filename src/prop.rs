@@ -26,6 +26,7 @@ pub fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
 pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
     loader: &Loader,
     props: I,
+    show_textures: bool,
 ) -> Result<Vec<CpuModel>, Error> {
     let props = props
         .filter_map(|prop| match load_prop(loader, prop.model()) {
@@ -48,13 +49,16 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
 
     props
         .map(|prop| {
-            let geometries: Vec<_> = prop_to_meshes(&prop).collect();
-            let materials: Vec<_> = prop
-                .model
-                .textures()
-                .iter()
-                .map(|tex| prop_texture_to_material(tex, loader))
-                .collect();
+            let geometries: Vec<_> = prop_to_meshes(&prop, show_textures).collect();
+            let materials: Vec<_> = if show_textures {
+                prop.model
+                    .textures()
+                    .iter()
+                    .map(|tex| prop_texture_to_material(tex, loader))
+                    .collect()
+            } else {
+                Vec::new()
+            };
 
             Ok(CpuModel {
                 name: prop.name.into(),
@@ -72,7 +76,10 @@ struct PropData<'a> {
     skin: i32,
 }
 
-fn prop_to_meshes<'a>(prop: &'a PropData) -> impl Iterator<Item = Primitive> + 'a {
+fn prop_to_meshes<'a>(
+    prop: &'a PropData,
+    show_textures: bool,
+) -> impl Iterator<Item = Primitive> + 'a {
     let transform = prop.transform;
     let model = &prop.model;
 
@@ -85,7 +92,11 @@ fn prop_to_meshes<'a>(prop: &'a PropData) -> impl Iterator<Item = Primitive> + '
     };
 
     model.meshes().map(move |mesh| {
-        let material_index = skin.texture_index(mesh.material_index());
+        let material_index = if show_textures {
+            skin.texture_index(mesh.material_index())
+        } else {
+            None
+        };
 
         let positions: Vec<Vec3> = mesh
             .vertices()

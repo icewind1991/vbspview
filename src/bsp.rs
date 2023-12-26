@@ -9,12 +9,17 @@ use three_d::{CpuModel, Positions, Vec3};
 use three_d_asset::{Geometry, Primitive, TriMesh};
 use vbsp::{Bsp, Entity, Handle, Vector};
 
-pub fn load_map(data: &[u8], loader: &mut Loader, props: bool) -> Result<Vec<CpuModel>, Error> {
-    let (world, bsp) = load_world(data, loader)?;
+pub fn load_map(
+    data: &[u8],
+    loader: &mut Loader,
+    props: bool,
+    textures: bool,
+) -> Result<Vec<CpuModel>, Error> {
+    let (world, bsp) = load_world(data, loader, textures)?;
     let mut models = Vec::with_capacity(bsp.static_props().count() + 1);
     models.push(world);
     if props {
-        let props = load_props(loader, bsp.static_props())?;
+        let props = load_props(loader, bsp.static_props(), textures)?;
         models.extend(props);
     }
     Ok(models)
@@ -32,13 +37,21 @@ pub fn map_coords<C: Into<Vec3>>(vec: C) -> Vec3 {
 // 1 hammer unit is ~1.905cm
 pub const UNIT_SCALE: f32 = 1.0 / (1.905 * 100.0);
 
-fn model_to_model(models: &[(Handle<vbsp::data::Model>, Vector)], loader: &Loader) -> CpuModel {
-    let textures: HashSet<&str> = models
-        .iter()
-        .flat_map(|(model, _)| model.textures())
-        .map(|texture| texture.name())
-        .collect();
-    let textures: Vec<&str> = textures.into_iter().collect();
+fn model_to_model(
+    models: &[(Handle<vbsp::data::Model>, Vector)],
+    loader: &Loader,
+    textures: bool,
+) -> CpuModel {
+    let textures: Vec<&str> = if textures {
+        let textures: HashSet<&str> = models
+            .iter()
+            .flat_map(|(model, _)| model.textures())
+            .map(|texture| texture.name())
+            .collect();
+        textures.into_iter().collect()
+    } else {
+        Vec::new()
+    };
 
     let faces_by_texture: HashMap<&str, _> = models
         .iter()
@@ -103,7 +116,7 @@ fn model_to_model(models: &[(Handle<vbsp::data::Model>, Vector)], loader: &Loade
     }
 }
 
-fn load_world(data: &[u8], loader: &mut Loader) -> Result<(CpuModel, Bsp), Error> {
+fn load_world(data: &[u8], loader: &mut Loader, textures: bool) -> Result<(CpuModel, Bsp), Error> {
     let bsp = Bsp::read(data)?;
 
     loader.add_source(bsp.pack.clone());
@@ -136,6 +149,6 @@ fn load_world(data: &[u8], loader: &mut Loader) -> Result<(CpuModel, Bsp), Error
         },
     ));
 
-    let world_model = model_to_model(&models, loader);
+    let world_model = model_to_model(&models, loader, textures);
     Ok((world_model, bsp))
 }

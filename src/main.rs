@@ -35,6 +35,9 @@ struct Args {
     /// Disable loading and showing props in the map
     #[arg(long)]
     no_props: bool,
+    /// Disable loading of textures
+    #[arg(long)]
+    no_textures: bool,
 }
 
 #[derive(Debug, Error)]
@@ -104,13 +107,13 @@ fn main() -> Result<(), Error> {
             .load(&format!("maps/{}.bsp", demo.map))?
             .ok_or(Error::ResourceNotFound(demo.map.clone()))?;
 
-        let models = load_map(&map, &mut loader, !args.no_props)?;
+        let models = load_map(&map, &mut loader, !args.no_props, !args.no_textures)?;
         play(window, DemoCamera::new(demo), models)
     } else {
         let mut loader = Loader::new()?;
         let map = fs::read(args.path)?;
 
-        let models = load_map(&map, &mut loader, !args.no_props)?;
+        let models = load_map(&map, &mut loader, !args.no_props, !args.no_textures)?;
         play(window, FirstPerson::new(0.1), models)
     }
 }
