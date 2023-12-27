@@ -12,25 +12,24 @@ vbsp = "0.4.0"
 miette = { version = "5.5.0", features = ["fancy"] }
 thiserror = "1.0.37"
 itertools = "0.12.0"
-vmdl = { version = "*", git = "https://github.com/icewind1991/vmdl" }
+vmdl = "0.1.0"
 #vmdl = { version = "*", path = "../vmdl" }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-tracing-tree = "0.2.2"
+tracing-tree = "0.3.0"
 cgmath = "0.18.0"
-tf-demo-parser = { version = "0.4.0", git = "https://github.com/demostf/parser" }
+tf-demo-parser = "0.5.0"
 steamid-ng = "1.0.0"
 clap = { version = "4.0.29", features = ["derive"] }
 splines = { version = "4.1.1", features = ["cgmath"] }
 vtf = "0.1.6"
-vmt-parser = { version = "0.1", git = "https://github.com/icewind1991/vmt-parser" }
+vmt-parser = "0.1.1"
 image = "0.23.14"
 tf-asset-loader = { version = "0.1", features = ["bsp"] }
+rayon = "1.8.0"
+bytemuck = "1.14.0"
+texpresso = { version = "2.0.1", features = ["rayon"] }
 
-# make tf-asset-loader use the same vbsp version
-[patch.crates-io]
-#vbsp = { version = "0.4.0", path = "../bsp" }
-vbsp = { version = "0.4.0", git = "https://github.com/icewind1991/vbsp" }
 
 [profile.dev.package."*"]
 opt-level = 2

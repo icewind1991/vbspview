@@ -102,6 +102,7 @@
           cargo-audit
           cargo-msrv
           cargo-flamegraph
+          hyperfine
         ]) ++ (buildDependencies pkgs) ++ (runtimeDependencies pkgs);
 
         LD_LIBRARY_PATH = with pkgs; "/run/opengl-driver/lib/:${lib.makeLibraryPath ([libGL libGLU])}";

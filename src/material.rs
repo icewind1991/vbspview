@@ -82,7 +82,9 @@ pub fn load_material(path: &str, loader: &Loader) -> Result<MaterialData, Error>
         });
     }
 
-    let base_texture = material.base_texture();
+    let base_texture = material
+        .base_texture()
+        .ok_or_else(|| Error::Other(format!("{path} has no base texture")))?;
 
     let translucent = material.translucent();
     let glass = material.surface_prop() == Some("glass");
@@ -138,26 +140,15 @@ pub fn convert_material(material: MaterialData) -> CpuMaterial {
     }
 }
 pub fn convert_texture(texture: TextureData, keep_alpha: bool) -> CpuTexture {
-    let width = texture.image.width();
-    let height = texture.image.height();
-    let data = if keep_alpha {
+    let image = texture.image;
+    let width = image.width();
+    let height = image.height();
+    let data = if image.color().has_alpha() && keep_alpha {
         three_d_asset::TextureData::RgbaU8(
-            texture
-                .image
-                .into_rgba8()
-                .pixels()
-                .map(|pixel| pixel.0)
-                .collect(),
+            image.into_rgba8().pixels().map(|pixel| pixel.0).collect(),
         )
     } else {
-        three_d_asset::TextureData::RgbU8(
-            texture
-                .image
-                .into_rgb8()
-                .pixels()
-                .map(|pixel| pixel.0)
-                .collect(),
-        )
+        three_d_asset::TextureData::RgbU8(image.into_rgb8().pixels().map(|pixel| pixel.0).collect())
     };
     CpuTexture {
         data,
@@ -223,7 +214,7 @@ impl<'s> MaterialSet<'s> {
         }
     }
 
-    pub fn into_iter(self) -> impl Iterator<Item = String> {
-        self.materials.into_inner().into_iter()
+    pub fn into_materials(self) -> Vec<String> {
+        self.materials.into_inner()
     }
 }

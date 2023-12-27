@@ -1,6 +1,7 @@
 use crate::bsp::map_coords;
 use crate::material::{convert_material, load_material_fallback, MaterialSet};
 use crate::Error;
+use rayon::prelude::*;
 use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use three_d_asset::{Geometry, Primitive, TriMesh};
@@ -56,7 +57,8 @@ pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
         .collect();
 
     let materials = used_materials
-        .into_iter()
+        .into_materials()
+        .into_par_iter()
         .map(|mat| prop_texture_to_material(&mat, loader))
         .collect();
 
