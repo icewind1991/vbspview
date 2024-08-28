@@ -1,3 +1,4 @@
+use cgmath::Matrix4;
 use crate::bsp::map_coords;
 use crate::material::{convert_material, load_material_fallback, MaterialSet};
 use crate::Error;
@@ -6,10 +7,11 @@ use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
 use three_d_asset::{Geometry, Primitive, TriMesh};
 use tracing::{error, warn};
-use vbsp::{Handle, StaticPropLump};
+use vbsp::PropPlacement;
 use vmdl::mdl::Mdl;
 use vmdl::vtx::Vtx;
 use vmdl::vvd::Vvd;
+use cgmath::SquareMatrix;
 
 #[tracing::instrument(skip(loader))]
 pub fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
@@ -24,24 +26,29 @@ pub fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
 
     Ok(vmdl::Model::from_parts(mdl, vtx, vvd))
 }
-pub fn load_props<'a, I: Iterator<Item = Handle<'a, StaticPropLump>>>(
+pub fn load_props<'a, I: Iterator<Item = PropPlacement<'a>>>(
     loader: &Loader,
     props: I,
     show_textures: bool,
 ) -> Result<Vec<CpuModel>, Error> {
     let props: Vec<_> = props
-        .filter_map(|prop| match load_prop(loader, prop.model()) {
+        .filter_map(|prop| match load_prop(loader, prop.model) {
             Ok(model) => Some((prop, model)),
             Err(e) => {
-                error!(error = ?e, prop = prop.model(), "Failed to load prop");
+                error!(error = ?e, prop = prop.model, "Failed to load prop");
                 None
             }
         })
         .map(|(prop, model)| {
-            let transform =
-                Mat4::from_translation(map_coords(prop.origin)) * Mat4::from(prop.rotation());
+            let root_transform = model.root_transform();
+            if !root_transform.is_identity() {
+                eprintln!("{}: {:?}", model.name(), root_transform);
+            }
+            let transform = Mat4::from_translation(map_coords(prop.origin))
+                * Mat4::from(prop.rotation)
+                * Mat4::from_scale(prop.scale);
             PropData {
-                name: prop.model(),
+                name: prop.model,
                 model,
                 transform,
                 skin: prop.skin,
@@ -102,7 +109,8 @@ fn prop_to_meshes<'a>(
 
         let positions: Vec<Vec3> = mesh
             .vertices()
-            .map(|vertex| map_coords(vertex.position))
+            .map(|vertex| model.vertex_to_world_space(vertex))
+            .map(|vertex| map_coords(vertex))
             .collect();
         let normals: Vec<Vec3> = mesh
             .vertices()

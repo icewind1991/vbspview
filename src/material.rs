@@ -6,8 +6,8 @@ use three_d::{CpuMaterial, CpuTexture};
 use three_d_asset::Srgba;
 use tracing::{error, instrument};
 use vmdl::mdl::TextureInfo;
-use vmt_parser::from_str;
 use vmt_parser::material::{Material, WaterMaterial};
+use vmt_parser::{from_str, TextureTransform};
 use vtf::vtf::VTF;
 
 pub fn load_material_fallback(name: &str, loader: &Loader) -> MaterialData {
@@ -32,6 +32,7 @@ pub struct MaterialData {
     pub alpha_test: Option<f32>,
     pub bump_map: Option<TextureData>,
     pub translucent: bool,
+    pub transform: Option<TextureTransform>,
 }
 
 #[derive(Debug)]
@@ -75,10 +76,8 @@ pub fn load_material(path: &str, loader: &Loader) -> Result<MaterialData, Error>
         return Ok(MaterialData {
             color: [82, 180, 217, 128],
             path,
-            texture: None,
-            bump_map: None,
-            alpha_test: None,
             translucent: true,
+            ..MaterialData::default()
         });
     }
 
@@ -98,6 +97,11 @@ pub fn load_material(path: &str, loader: &Loader) -> Result<MaterialData, Error>
         })
     });
 
+    let transform = material
+        .base_texture_transform()
+        .filter(|transform| **transform != TextureTransform::default())
+        .cloned();
+
     Ok(MaterialData {
         color: [255; 4],
         path,
@@ -108,6 +112,7 @@ pub fn load_material(path: &str, loader: &Loader) -> Result<MaterialData, Error>
         bump_map,
         alpha_test,
         translucent: translucent | glass,
+        transform,
     })
 }
 

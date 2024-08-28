@@ -18,8 +18,21 @@ pub fn load_map(
     let (world, bsp) = load_world(data, loader, textures)?;
     let mut models = Vec::with_capacity(bsp.static_props().count() + 1);
     models.push(world);
+    // println!("{:#?}", bsp.entities);
+    let entity_props =
+        bsp.entities
+            .iter()
+            .flat_map(|ent| ent.parse())
+            .filter_map(|ent| match ent {
+                Entity::PropDynamic(prop) => Some(prop.as_prop_placement()),
+                Entity::PropPhysics(prop) => Some(prop.as_prop_placement()),
+                Entity::PropDynamicOverride(prop) => Some(prop.as_prop_placement()),
+                _ => None,
+            });
+    let static_props = bsp.static_props().map(|prop| prop.as_prop_placement());
+
     if props {
-        let props = load_props(loader, bsp.static_props(), textures)?;
+        let props = load_props(loader, static_props.chain(entity_props), textures)?;
         models.extend(props);
     }
     Ok(models)
@@ -119,7 +132,7 @@ fn model_to_model(
 fn load_world(data: &[u8], loader: &mut Loader, textures: bool) -> Result<(CpuModel, Bsp), Error> {
     let bsp = Bsp::read(data)?;
 
-    loader.add_source(bsp.pack.clone());
+    loader.add_source(bsp.pack.clone().into_zip());
 
     let world_model = bsp
         .models()
