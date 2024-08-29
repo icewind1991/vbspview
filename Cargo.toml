@@ -6,32 +6,28 @@ authors = ["Robin Appelman <robin@icewind.nl>"]
 license = "MIT"
 
 [dependencies]
-three-d = { version = "0.16.3", features = ["egui-gui"] }
+three-d = { version = "0.16.4", features = ["egui-gui"] }
 three-d-asset = { version = "0.6" }
-vbsp = "0.5.0"
-miette = { version = "5.5.0", features = ["fancy"] }
-thiserror = "1.0.37"
-itertools = "0.12.0"
+vbsp = "0.6.0"
+miette = { version = "7.2.0", features = ["fancy"] }
+thiserror = "1.0.63"
+itertools = "0.13.0"
 vmdl = "0.2.0"
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-tracing-tree = "0.3.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-tree = "0.4.0"
 cgmath = "0.18.0"
-tf-demo-parser = "0.5.0"
+tf-demo-parser = "0.5.1"
 steamid-ng = "1.0.0"
-clap = { version = "4.0.29", features = ["derive"] }
-splines = { version = "4.1.1", features = ["cgmath"] }
-vtf = "0.1.6"
-vmt-parser = "0.1.1"
-image = "0.23.14"
+clap = { version = "4.5.16", features = ["derive"] }
+splines = { version = "4.3.1", features = ["cgmath"] }
+vtf = "0.3.0"
+vmt-parser = "0.2.0"
+image = "0.25.2"
 tf-asset-loader = { version = "0.1", features = ["bsp"] }
-rayon = "1.8.0"
-bytemuck = "1.14.0"
+rayon = "1.10.0"
+bytemuck = "1.17.1"
 texpresso = { version = "2.0.1", features = ["rayon"] }
-
-[patch.crates-io]
-vbsp = { path = "../bsp" }
-vmdl = { path = "../vmdl" }
 
 [profile.dev.package."*"]
 opt-level = 2

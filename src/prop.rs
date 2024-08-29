@@ -1,7 +1,7 @@
-use cgmath::Matrix4;
 use crate::bsp::map_coords;
 use crate::material::{convert_material, load_material_fallback, MaterialSet};
 use crate::Error;
+use cgmath::SquareMatrix;
 use rayon::prelude::*;
 use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
@@ -11,7 +11,6 @@ use vbsp::PropPlacement;
 use vmdl::mdl::Mdl;
 use vmdl::vtx::Vtx;
 use vmdl::vvd::Vvd;
-use cgmath::SquareMatrix;
 
 #[tracing::instrument(skip(loader))]
 pub fn load_prop(loader: &Loader, name: &str) -> Result<vmdl::Model, Error> {
@@ -109,7 +108,7 @@ fn prop_to_meshes<'a>(
 
         let positions: Vec<Vec3> = mesh
             .vertices()
-            .map(|vertex| model.vertex_to_world_space(vertex))
+            .map(|vertex| model.apply_root_transform(vertex.position))
             .map(|vertex| map_coords(vertex))
             .collect();
         let normals: Vec<Vec3> = mesh

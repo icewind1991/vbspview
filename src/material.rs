@@ -1,5 +1,5 @@
 use crate::Error;
-use image::{DynamicImage, GenericImageView};
+use image::DynamicImage;
 use std::cell::RefCell;
 use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuTexture};
@@ -32,6 +32,7 @@ pub struct MaterialData {
     pub alpha_test: Option<f32>,
     pub bump_map: Option<TextureData>,
     pub translucent: bool,
+    #[allow(dead_code)]
     pub transform: Option<TextureTransform>,
 }
 
