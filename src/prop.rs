@@ -109,7 +109,7 @@ fn prop_to_meshes<'a>(
         let positions: Vec<Vec3> = mesh
             .vertices()
             .map(|vertex| model.apply_root_transform(vertex.position))
-            .map(|vertex| map_coords(vertex))
+            .map(map_coords)
             .collect();
         let normals: Vec<Vec3> = mesh
             .vertices()
@@ -141,5 +141,5 @@ fn prop_to_meshes<'a>(
 }
 
 fn prop_texture_to_material(texture: &str, loader: &Loader) -> CpuMaterial {
-    convert_material(load_material_fallback(&texture, loader))
+    convert_material(load_material_fallback(texture, loader))
 }

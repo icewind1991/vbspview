@@ -122,8 +122,8 @@ fn load_texture(name: &str, loader: &Loader) -> Result<DynamicImage, Error> {
         "materials/{}.vtf",
         name.trim_end_matches(".vtf").trim_start_matches('/')
     );
-    let mut raw = loader.load(&path)?.ok_or(Error::ResourceNotFound(path))?;
-    let vtf = VTF::read(&mut raw)?;
+    let raw = loader.load(&path)?.ok_or(Error::ResourceNotFound(path))?;
+    let vtf = VTF::read(&raw)?;
     let image = vtf.highres_image.decode(0)?;
     Ok(image)
 }
@@ -201,7 +201,7 @@ impl<'s> MaterialSet<'s> {
         } else {
             self.loader
                 .find_in_paths(&material, &search_path)
-                .unwrap_or(material.into())
+                .unwrap_or(material)
         };
 
         let mut materials = self.materials.borrow_mut();
