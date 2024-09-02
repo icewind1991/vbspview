@@ -1,7 +1,6 @@
 use crate::bsp::map_coords;
 use crate::material::{convert_material, load_material_fallback, MaterialSet};
 use crate::Error;
-use cgmath::SquareMatrix;
 use rayon::prelude::*;
 use tf_asset_loader::Loader;
 use three_d::{CpuMaterial, CpuModel, Mat4, Positions, Vec2, Vec3, Vec4};
@@ -39,10 +38,6 @@ pub fn load_props<'a, I: Iterator<Item = PropPlacement<'a>>>(
             }
         })
         .map(|(prop, model)| {
-            let root_transform = model.root_transform();
-            if !root_transform.is_identity() {
-                eprintln!("{}: {:?}", model.name(), root_transform);
-            }
             let transform = Mat4::from_translation(map_coords(prop.origin))
                 * Mat4::from(prop.rotation)
                 * Mat4::from_scale(prop.scale);
