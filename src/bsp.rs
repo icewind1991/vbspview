@@ -7,7 +7,8 @@ use std::collections::{HashMap, HashSet};
 use tf_asset_loader::Loader;
 use three_d::{CpuModel, Positions, Vec3};
 use three_d_asset::{Geometry, Primitive, TriMesh};
-use vbsp::{Bsp, Entity, Handle, Vector};
+use vbsp::{AsPropPlacement, Bsp, Handle, Vector};
+use vbsp_entities_tf2::Entity;
 
 pub fn load_map(
     data: &[u8],
@@ -19,16 +20,16 @@ pub fn load_map(
     let mut models = Vec::with_capacity(bsp.static_props().count() + 1);
     models.push(world);
     // println!("{:#?}", bsp.entities);
-    let entity_props =
-        bsp.entities
-            .iter()
-            .flat_map(|ent| ent.parse())
-            .filter_map(|ent| match ent {
-                Entity::PropDynamic(prop) => Some(prop.as_prop_placement()),
-                Entity::PropPhysics(prop) => Some(prop.as_prop_placement()),
-                Entity::PropDynamicOverride(prop) => Some(prop.as_prop_placement()),
-                _ => None,
-            });
+    let entity_props = bsp
+        .entities
+        .iter()
+        .flat_map(|ent| ent.parse::<Entity>())
+        .filter_map(|ent| match ent {
+            Entity::PropDynamic(prop) => Some(prop.as_prop_placement()),
+            Entity::PropPhysics(prop) => Some(prop.as_prop_placement()),
+            Entity::PropDynamicOverride(prop) => Some(prop.as_prop_placement()),
+            _ => None,
+        });
     let static_props = bsp.static_props().map(|prop| prop.as_prop_placement());
 
     if props {
@@ -144,13 +145,13 @@ fn load_world(data: &[u8], loader: &mut Loader, textures: bool) -> Result<(CpuMo
         .iter()
         .flat_map(|ent| ent.parse())
         .filter_map(|ent| match ent {
-            Entity::Brush(ent)
-            | Entity::BrushIllusionary(ent)
-            | Entity::BrushWall(ent)
-            | Entity::BrushWallToggle(ent) => Some(ent),
+            Entity::FuncBrush(ent) => Some((ent.model.unwrap_or_default(), ent.origin)),
+            Entity::FuncIllusionary(ent) => Some((ent.model.unwrap_or_default(), ent.origin)),
+            Entity::FuncWall(ent) => Some((ent.model, Default::default())),
+            Entity::FuncWallToggle(ent) => Some((ent.model, Default::default())),
             _ => None,
         })
-        .flat_map(|brush| Some((brush.model[1..].parse::<usize>().ok()?, brush.origin)))
+        .flat_map(|(model_index, origin)| Some((model_index[1..].parse::<usize>().ok()?, origin)))
         .flat_map(|(index, origin)| Some((bsp.models().nth(index)?, origin)))
         .collect();
     models.push((

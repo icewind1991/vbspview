@@ -8,10 +8,11 @@ license = "MIT"
 [dependencies]
 three-d = { version = "0.16.4", features = ["egui-gui"] }
 three-d-asset = { version = "0.6" }
-vbsp = "0.6.0"
+vbsp = { version = "0.8.1" }
+vbsp-entities-tf2 = "0.4.0"
 miette = { version = "7.2.0", features = ["fancy"] }
-thiserror = "1.0.63"
-itertools = "0.13.0"
+thiserror = "2.0.12"
+itertools = "0.14.0"
 vmdl = "0.2.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
@@ -23,7 +24,7 @@ splines = { version = "4.3.1", features = ["cgmath"] }
 vtf = "0.3.0"
 vmt-parser = "0.2.0"
 image = "0.25.2"
-tf-asset-loader = { version = "0.1.7", features = ["bsp"] }
+tf-asset-loader = { version = "0.2.0", features = ["bsp"] }
 rayon = "1.10.0"
 
 [profile.dev.package."*"]
