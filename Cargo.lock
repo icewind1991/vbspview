@@ -3078,9 +3078,9 @@ dependencies = [
 
 [[package]]
 name = "vbsp-entities-tf2"
-version = "0.4.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7994fa44f59bff564651dff0727d9fc99a07b4b2f1292db676701bda8d1c8bf8"
+checksum = "fbc7d64c1fbe9dbe1a912c26278b532551773ef34d929a63deeeb99ce4ff1785"
 dependencies = [
  "serde",
  "vbsp-common",
